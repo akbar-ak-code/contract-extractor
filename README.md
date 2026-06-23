@@ -45,9 +45,10 @@ To run the automated bulk evaluation pipeline and generate performance matrices,
 python -m evaluate.benchmark
 # Generates the raw extracted text dataset (combined_actual_text_matrix.csv)
 python -m evaluate.benchmark_text
-##What does the output look like?
+## What does the output look like?
+
 When the backend successfully processes a contract via the hybrid pipeline, it returns a structured JSON profile identifying both the extracted value and which model routed the answer:
-{
+```{
   "filename": "sample_corporate_agreement.pdf",
   "extraction_result": {
     "status": "success",
