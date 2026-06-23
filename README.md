@@ -49,26 +49,41 @@ python -m evaluate.benchmark_text
 
 When the backend successfully processes a contract via the hybrid pipeline, it returns a structured JSON profile identifying both the extracted value and which model routed the answer:
 ```{
-  "filename": "sample_corporate_agreement.pdf",
-  "extraction_result": {
-    "status": "success",
-    "profile": {
-      "party_names": {
-        "value": "Acme Corporation and Innovatech Solutions Inc.",
-        "model_used": "Gemini-3.5-Flash"
-      },
-      "effective_date": {
-        "value": "October 24, 2025",
-        "model_used": "Gemini-3.5-Flash"
-      },
-      "expiration_date": {
-        "value": "October 24, 2028",
-        "model_used": "RoBERTa-CUAD"
-      },
-      "governing_law": {
-        "value": "State of Delaware",
-        "model_used": "Gemini-3.5-Flash"
-      }
+  "DYNTEKINC_07_30_1999-EX-10-ONLINE HOSTING AGREEMENT.PDF_combined_v2": {
+        "status": "success",
+        "profile": {
+            "party_names": {
+                "value": "Diplomat Direct Marketing Corporation and Tadeo E-Commerce Corp.",
+                "model_used": "Gemini-2.5-Flash"
+            },
+            "effective_date": {
+                "value": "June 1, 1999",
+                "model_used": "Gemini-2.5-Flash"
+            },
+            "expiration_date": {
+                "value": "The term of this Agreement shall begin on the date hereof (the \"Effective Date\") and shall continue for a period of 12 months thereafter (the \"Period\") in full force and effect until it is terminated in accordance with this Section 3.",
+                "model_used": "RoBERTa-CUAD"
+            },
+            "renewal": {
+                "value": "Diplomat or Tadeo, if such party is not in default of the terms of this Agreement, may extend the term of this Agreement for an additional one year (\"Additional Period\"), provided the extending party gives the other party at least sixty (60) days advance written notice before the end of the Period.",
+                "model_used": "RoBERTa-CUAD"
+            },
+            "payment_terms": {
+                "value": "Tadeo will invoice Diplomat within 15 days of the end of each month for Services rendered in such month. Diplomat will pay such invoice within 30 days of receipt. Late payments shall accrue interest at a rate equal to fifteen (15%) percent per annum.",
+                "model_used": "Gemini-2.5-Flash"
+            },
+            "termination_for_cause": {
+                "value": "Either party may terminate the agreement if the other party is in material breach (not cured within 5 days of written notice), upon bankruptcy or insolvency proceedings not dismissed within 60 days, involuntary dissolution, or judicial adjudication of insolvency.",
+                "model_used": "Gemini-2.5-Flash"
+            },
+            "governing_law": {
+                "value": "State of New York",
+                "model_used": "Gemini-2.5-Flash"
+            },
+            "penalties": {
+                "value": "The Web Agreement is terminated by any of Tadeo, Diplomat, or any other party thereto [in the event the rights and obligations of any party(ies) to such Web Agreement have been duly assigned to a third party(ies) under the terms thereof] in accordance with the terms of the Web Agreement, but not if the Web Agreement is terminated by Diplomat or its assignee(s) other than in accordance with the terms of the Web Agreement\u037e",
+                "model_used": "RoBERTa-CUAD"
+            }
+        }
     }
-  }
 }
