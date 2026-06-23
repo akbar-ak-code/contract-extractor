@@ -38,7 +38,7 @@ Open two separate terminal windows:
    uvicorn main:app --reload
 In terminal 2 (Frontend): Navigate to the client folder and run:
    npm run dev
-##How do I run the benchmark evaluation?
+## How do I run the benchmark evaluation?
 To run the automated bulk evaluation pipeline and generate performance matrices, navigate to your server directory (with the virtual environment activated) and run:
 
 # Generates the accuracy pass/fail matrix (combined_emoji_matrix.csv)
