@@ -3,20 +3,21 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-CACHE_FILE = "contract_cache.json"
+CACHE_FILE = "po_cache.json"
 LOCAL_MODEL_NAME = "akdeniz27/roberta-base-cuad"
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-# Configuration map for the hybrid routing architecture.
-# Directs structural/complex fields to the generative cloud LLM (Gemini) 
-# and highly specific temporal/monetary fields to the local extractive model (RoBERTa).
+# Hybrid routing architecture for Purchase Orders
+# RoBERTa struggles with tabular PO data, so all fields are routed to the generative LLM.
 FIELD_MODEL_MAP = {
-    "party_names": "gemini",
+    "po_number": "gemini",
+    "vendor_name": "gemini",
+    "vendor_contact_address": "gemini",
     "effective_date": "gemini",
-    "expiration_date": "roberta",  
-    "renewal": "roberta",           
-    "payment_terms": "gemini",
-    "termination_for_cause": "gemini",
-    "governing_law": "gemini",
-    "penalties": "roberta"
+    "lapse_expiry_date": "gemini",
+    "conditions_of_agreement": "gemini",
+    "conditions_of_payment": "gemini",
+    "line_items": "gemini",
+    "total_value": "gemini",
+    "authorising_signatory": "gemini"
 }

@@ -1,58 +1,92 @@
 import os
 import csv
-# Using your new clean architecture imports!
+import json
 from extractor.ingestion import extract_and_chunk_pdf
 from extractor.extraction import extract_contract_profile_with_combined_pipeline
 
-TEST_DIR = "test_contracts"
-OUTPUT_CSV = "combined_actual_text_matrix.csv"
+def process_directory_to_csv(input_dir="test_contracts", output_csv="po_extraction_results.csv"):
+    """
+    Automates the extraction of Purchase Orders from a directory and writes the structured output to a CSV.
+    """
+    if not os.path.exists(input_dir):
+        print(f"Directory '{input_dir}' not found. Creating it now. Please add PDFs and re-run.")
+        os.makedirs(input_dir)
+        return
 
-def run_actual_text_eval():
-    pdf_files = [f for f in os.listdir(TEST_DIR) if f.lower().endswith('.pdf')]
-    print(f"🚀 Starting Actual Text Extraction Evaluation on {len(pdf_files)} contracts...\n")
-
-    # CSV Headers
-    headers = [
-        "Contract", "Party Names", "Effective Date", "Expiration Date", 
-        "Renewal", "Payment Terms", "Termination", "Governing Law", "Penalties"
+    # Define the CSV headers based on our PO schema
+    csv_headers = [
+        "Filename",
+        "PO Number",
+        "Vendor Name",
+        "Contact & Address",
+        "Effective Date",
+        "Lapse / Expiry Date",
+        "Total Value",
+        "Conditions of Agreement",
+        "Conditions of Payment",
+        "Authorising Signatory",
+        "Line Items (JSON String)",
+        "Status"
     ]
 
-    with open(OUTPUT_CSV, mode='w', newline='', encoding='utf-8') as file:
+    with open(output_csv, mode="w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
-        writer.writerow(headers)
+        writer.writerow(csv_headers)
 
-        for idx, filename in enumerate(pdf_files):
-            print(f"📄 Processing [{idx + 1}/{len(pdf_files)}]: {filename}")
-            
-            try:
-                chunks = extract_and_chunk_pdf(os.path.join(TEST_DIR, filename))
-                
-                # Running the pipeline
-                result = extract_contract_profile_with_combined_pipeline(chunks, filename)
-                
-                if result.get("status") == "success":
-                    p = result["profile"]
-                    
-                    # 🤖 Extracting the ACTUAL text values safely
-                    parties = p.get('party_names', {}).get('value', 'Not found in contract')
-                    eff_date = p.get('effective_date', {}).get('value', 'Not found in contract')
-                    exp_date = p.get('expiration_date', {}).get('value', 'Not found in contract')
-                    renewal = p.get('renewal', {}).get('value', 'Not found in contract')
-                    payment = p.get('payment_terms', {}).get('value', 'Not found in contract')
-                    term = p.get('termination_for_cause', {}).get('value', 'Not found in contract')
-                    law = p.get('governing_law', {}).get('value', 'Not found in contract')
-                    penalties = p.get('penalties', {}).get('value', 'Not found in contract')
-                    
-                    # Write the raw extracted text to the CSV
-                    writer.writerow([filename, parties, eff_date, exp_date, renewal, payment, term, law, penalties])
-                else:
-                    writer.writerow([filename] + ["EXTRACTION FAILED"] * 8)
+        # Loop through all PDFs in the target folder
+        for filename in os.listdir(input_dir):
+            if filename.lower().endswith(".pdf"):
+                filepath = os.path.join(input_dir, filename)
+                print(f"⏳ Processing: {filename}...")
 
-            except Exception as e:
-                print(f"   ❌ Error on {filename}: {e}")
-                writer.writerow([filename] + ["ERROR"] * 8)
+                try:
+                    # 1. Chunk the PDF using the page-based chunker
+                    chunks = extract_and_chunk_pdf(filepath)
 
-    print(f"\n✅ Actual Text Matrix Complete! Open '{OUTPUT_CSV}'.")
+                    # 2. Run the smart extraction pipeline
+                    result = extract_contract_profile_with_combined_pipeline(chunks, filename)
+
+                    # 3. Parse results and write to CSV
+                    if result.get("status") == "success":
+                        profile = result.get("profile", {})
+                        
+                        # Helper to safely extract values from the profile dict
+                        def get_val(field):
+                            return profile.get(field, {}).get("value", "not_found")
+
+                        # Format line items as a clean JSON string for the CSV cell
+                        line_items_raw = get_val("line_items")
+                        if isinstance(line_items_raw, list):
+                            line_items_str = json.dumps(line_items_raw) 
+                        else:
+                            line_items_str = str(line_items_raw)
+
+                        # Write the row
+                        writer.writerow([
+                            filename,
+                            get_val("po_number"),
+                            get_val("vendor_name"),
+                            get_val("vendor_contact_address"),
+                            get_val("effective_date"),
+                            get_val("lapse_expiry_date"),
+                            get_val("total_value"),
+                            get_val("conditions_of_agreement"),
+                            get_val("conditions_of_payment"),
+                            get_val("authorising_signatory"),
+                            line_items_str,
+                            "Success"
+                        ])
+                        print(f"✅ Successfully extracted: {filename}")
+                    else:
+                        writer.writerow([filename] + [""] * 9 + ["Extraction Failed"])
+                        print(f"❌ Failed to extract: {filename}")
+
+                except Exception as e:
+                    print(f"⚠️ Error processing {filename}: {str(e)}")
+                    writer.writerow([filename] + [""] * 9 + [f"System Error: {str(e)}"])
+
+    print(f"\n🎉 Batch processing complete! Results saved to '{output_csv}'")
 
 if __name__ == "__main__":
-    run_actual_text_eval()
+    # You can change the folder name or output file name here
+    process_directory_to_csv(input_dir="test_contracts", output_csv="po_extraction_results.csv")
