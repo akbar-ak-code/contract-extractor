@@ -4,11 +4,9 @@ from google.genai import types
 from .config import FIELD_MODEL_MAP
 from .models import run_smart_sliding_window_extraction, run_gemini_extraction
 
-# ❌ REMOVED load_cache() and save_cache() functions completely.
 
 def extract_contract_profile_with_combined_pipeline(chunks, filename):
-    # ❌ REMOVED the cache checking logic here
-    print(f"⚙️ Running fresh AI Extraction for: {filename}...")
+    print(f"Running fresh AI Extraction for: {filename}...")
 
     all_text = "\n".join([c['text'] for c in chunks])
     
