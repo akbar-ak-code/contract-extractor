@@ -203,3 +203,24 @@ async def get_po_details(po_id: int, db: Session = Depends(get_db)):
     }
     
     return {"filename": record.filename, "db_id": record.id, "extraction_result": {"status": "success", "profile": cached_profile}}
+@app.delete("/api/pos/{po_id}")
+async def delete_purchase_order(po_id: int, db: Session = Depends(get_db)):
+    """Deletes a PO from the database and removes the physical file."""
+    record = db.query(PurchaseOrderRecord).filter(PurchaseOrderRecord.id == po_id).first()
+    
+    if not record:
+        raise HTTPException(status_code=404, detail="PO not found")
+        
+    # 1. Delete the physical PDF file from the disk
+    if record.pdf_file_path and os.path.exists(record.pdf_file_path):
+        try:
+            os.remove(record.pdf_file_path)
+            print(f"🗑️ Deleted physical file: {record.pdf_file_path}")
+        except Exception as e:
+            print(f"⚠️ Warning: Could not delete physical file: {e}")
+
+    # 2. Wipe the database record
+    db.delete(record)
+    db.commit()
+    
+    return {"status": "success", "message": f"PO {po_id} deleted successfully"}

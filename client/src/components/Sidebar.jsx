@@ -1,11 +1,13 @@
+// src/components/Sidebar.jsx
 import React from 'react';
-import { Clock, Plus } from 'lucide-react';
+import { Clock, Plus, Trash2 } from 'lucide-react'; // 🆕 Imported Trash2
 import { parseAiDate, getDaysLeft, getDeadlineColor } from '../utils/helpers.js';
 
-const Sidebar = ({ history, onNewUpload, onLoadPO }) => {
+const Sidebar = ({ history, onNewUpload, onLoadPO, onDeletePO }) => { // 🆕 Added onDeletePO prop
   const upcomingDeadlines = history
     .map(po => {
-      const parsedDate = parseAiDate(po.lapse_expiry_date);
+      // Sidebar.jsx (Inside map function)
+const parsedDate = parseAiDate(po.lapse_expiry_date, po.effective_date); // <--- Pass effective_date here!
       if (!parsedDate) return null;
       const daysLeft = getDaysLeft(parsedDate);
       return { ...po, parsedDate, daysLeft };
@@ -33,17 +35,28 @@ const Sidebar = ({ history, onNewUpload, onLoadPO }) => {
               <div 
                 key={po.id} 
                 onClick={() => onLoadPO(po.id)} 
-                className="p-4 bg-[#1c1c1c] rounded-lg cursor-pointer border border-[#2a2a2a] hover:border-[#444] hover:bg-[#252525] transition-all group relative overflow-hidden"
+                className="p-4 bg-[#1c1c1c] rounded-lg cursor-pointer border border-[#2a2a2a] hover:border-[#444] hover:bg-[#252525] transition-all group relative overflow-hidden flex justify-between items-center"
               >
                   {/* Left color bar indicator */}
                   <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: color }}></div>
                   
-                  <div className="text-[0.95rem] font-medium text-[#e0e0e0] truncate pl-2">
-                      {po.po_number || po.filename}
+                  <div className="flex-1 overflow-hidden">
+                      <div className="text-[0.95rem] font-medium text-[#e0e0e0] truncate pl-2">
+                          {po.po_number || po.filename}
+                      </div>
+                      <div className="text-xs mt-1.5 pl-2 font-semibold" style={{ color: color }}>
+                         {po.daysLeft < 0 ? `Expired ${Math.abs(po.daysLeft)} days ago` : `Expires in ${po.daysLeft} days`}
+                      </div>
                   </div>
-                  <div className="text-xs mt-1.5 pl-2 font-semibold" style={{ color: color }}>
-                     {po.daysLeft < 0 ? `Expired ${Math.abs(po.daysLeft)} days ago` : `Expires in ${po.daysLeft} days`}
-                  </div>
+
+                  {/* 🆕 Trash Icon Button */}
+                  <button 
+                      onClick={(e) => onDeletePO(po.id, e)}
+                      className="text-[#555] hover:text-[#ef4444] bg-transparent border-none p-2 rounded cursor-pointer transition-colors opacity-50 group-hover:opacity-100"
+                      title="Delete Document"
+                  >
+                      <Trash2 size={16} />
+                  </button>
               </div>
             );
           })}

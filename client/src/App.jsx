@@ -1,7 +1,7 @@
 // src/App.jsx
 import React, { useState, useRef, useEffect } from 'react';
 import { Calendar as CalendarIcon, FileText } from 'lucide-react';
-import './App.css';
+
 
 import Sidebar from './components/Sidebar';
 import CalendarView from './components/CalendarView';
@@ -47,7 +47,25 @@ const App = () => {
       setLoading(false);
     }
   };
+const handleDeletePO = async (id, e) => {
+    e.stopPropagation(); // Stops the row click from triggering loadPastPO
+    if (!window.confirm("Are you sure you want to permanently delete this document?")) return;
 
+    try {
+      const res = await fetch(`http://localhost:8000/api/pos/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchHistory(); // Instantly update the sidebar and calendar
+        setResult(null); // Clear the screen to avoid showing deleted data
+        setFile(null);
+        setActiveSource(null);
+        setActiveTab('extraction');
+      } else {
+        console.error("Failed to delete the file.");
+      }
+    } catch (err) {
+      console.error("Network error during deletion:", err);
+    }
+  };
   const handleAnalyze = async () => {
     if (!file) return;
     setLoading(true); setError(null); setActiveSource(null);
@@ -82,10 +100,11 @@ const App = () => {
 
   return (
     <div className="flex h-screen bg-[#0a0a0a] font-sans text-neutral-200 antialiased">
-      <Sidebar
-        history={history}
-        onNewUpload={() => { setResult(null); setFile(null); setActiveSource(null); setActiveTab('extraction'); }}
-        onLoadPO={loadPastPO}
+      <Sidebar 
+        history={history} 
+        onNewUpload={() => {setResult(null); setFile(null); setActiveSource(null); setActiveTab('extraction');}} 
+        onLoadPO={loadPastPO} 
+        onDeletePO={handleDeletePO} // 🆕 Add this new prop!
       />
 
       <main className="flex flex-1 flex-col overflow-y-auto bg-gradient-to-br from-[#101012] via-[#0d0d0f] to-[#0a0a0c] px-12 py-8">
