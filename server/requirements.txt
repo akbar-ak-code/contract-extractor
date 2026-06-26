@@ -7,3 +7,4 @@ transformers
 google-genai
 python-dotenv
 pymupdf
+sqlalchemy

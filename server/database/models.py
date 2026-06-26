@@ -1,4 +1,3 @@
-# database/models.py
 from sqlalchemy import Column, Integer, String, Text, JSON, DateTime
 from sqlalchemy.sql import func
 from .connection import Base
@@ -8,14 +7,9 @@ class PurchaseOrderRecord(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     filename = Column(String, index=True)
-    
-    # 🔐 NEW: The SHA-256 Cryptographic Hash for Deduplication
     file_hash = Column(String, unique=True, index=True)
-    
-    # 📁 The critical column for your Reference feature!
     pdf_file_path = Column(String) 
     
-    # 📝 Extracted AI Fields
     po_number = Column(String, index=True)
     vendor_name = Column(String, index=True)
     vendor_contact_address = Column(Text)
@@ -26,15 +20,20 @@ class PurchaseOrderRecord(Base):
     conditions_of_payment = Column(Text)
     authorising_signatory = Column(String)
     
-    # Nested Tabular Data
     line_items = Column(JSON)
-
-    # Source Quotes for the UI Reference Feature
     source_quotes = Column(JSON)
-
-    # Human-in-the-Loop Workflow Tracking
-    status = Column(String, default="Pending Review") 
     
-    # Timestamps
+    custom_extracted_data = Column(JSON, default={})
+
+    status = Column(String, default="Pending Review") 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+class CustomField(Base):
+    __tablename__ = "custom_fields"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True) 
+    description = Column(String) 
+    example = Column(String, nullable=True) 
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

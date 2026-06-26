@@ -13,6 +13,9 @@ const App = () => {
   const [activeSource, setActiveSource] = useState(null);
   const [activeTab, setActiveTab] = useState('calendar'); // 'calendar' or 'extraction'
   
+  // 🆕 Calendar State: Track the week currently being viewed
+  const [weekStart, setWeekStart] = useState(new Date(2026, 6, 6)); // Default to July 6, 2026
+  
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -116,31 +119,88 @@ const App = () => {
 
   // --- UI COMPONENTS ---
 
-  const CalendarView = () => {
-    const days = ['6 Mon', '7 Tue', '8 Wed', '9 Thu', '10 Fri'];
+const CalendarView = () => {
+    // Start on Monday, May 25, 2026 
+    const [weekStart, setWeekStart] = useState(new Date(2026, 4, 25)); 
+
+    // 🚀 FIXED: Changed length from 5 to 7 to show the weekend!
+    const generatedDays = Array.from({ length: 7 }).map((_, i) => {
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + i);
+      return {
+        id: d.toISOString(),
+        dateObj: d,
+        num: d.getDate(),
+        name: d.toLocaleDateString('en-US', { weekday: 'short' }),
+        isToday: d.toDateString() === new Date().toDateString()
+      };
+    });
+
+    const handlePrevWeek = () => {
+      const newDate = new Date(weekStart);
+      newDate.setDate(weekStart.getDate() - 7);
+      setWeekStart(newDate);
+    };
+
+    const handleNextWeek = () => {
+      const newDate = new Date(weekStart);
+      newDate.setDate(weekStart.getDate() + 7);
+      setWeekStart(newDate);
+    };
+
+    const getDeadlinesForDay = (targetDate) => {
+      return history.filter(po => {
+        if (!po.lapse_expiry_date || po.lapse_expiry_date === "not_found") return false;
+
+        // 1. Try the strict DD.MM.YYYY or DD-MM-YYYY format first
+        const match = po.lapse_expiry_date.match(/(\d{2})[\.\-\/](\d{2})[\.\-\/](\d{4})/);
+        let poDate;
+        
+        if (match) {
+          poDate = new Date(match[3], match[2] - 1, match[1]); // Year, Month (0-indexed), Day
+        } else {
+          // 2. 🚀 The Fix: Clean up messy AI text by stripping "st", "nd", "rd", "th" 
+          // Turns "31st March 2026" into "31 March 2026" so JS doesn't crash!
+          const cleanedDateStr = po.lapse_expiry_date.replace(/\b(\d+)(st|nd|rd|th)\b/gi, '$1');
+          poDate = new Date(cleanedDateStr); 
+        }
+
+        if (isNaN(poDate)) return false;
+        return poDate.toDateString() === targetDate.toDateString();
+      });
+    };
+
+    const month = weekStart.toLocaleDateString('en-US', { month: 'long' });
+    const year = weekStart.getFullYear();
+    const endDay = new Date(weekStart);
+    
+    // 🚀 FIXED: Calculate the end of the header for a 7-day week
+    endDay.setDate(weekStart.getDate() + 6); 
+
     const times = ['8 AM', '9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM'];
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#1c1c1c', borderRadius: '8px', border: '1px solid #333', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#1c1c1c', borderRadius: '8px', border: '1px solid #333', overflow: 'hidden', animation: 'fadeIn 0.3s ease-out' }}>
         
         {/* Calendar Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #333', background: '#242424' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ fontSize: '1.2rem', fontWeight: '600' }}>July 6–10, 2026</span>
+            <span style={{ fontSize: '1.2rem', fontWeight: '600' }}>{month} {weekStart.getDate()}–{endDay.getDate()}, {year}</span>
             <div style={{ display: 'flex', gap: '8px', color: '#a0a0a0' }}>
-              <ChevronLeft size={20} style={{ cursor: 'pointer' }} />
-              <ChevronRight size={20} style={{ cursor: 'pointer' }} />
+              <ChevronLeft size={20} onClick={handlePrevWeek} style={{ cursor: 'pointer', transition: 'color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.color = '#fff'} onMouseOut={(e) => e.currentTarget.style.color = '#a0a0a0'} />
+              <ChevronRight size={20} onClick={handleNextWeek} style={{ cursor: 'pointer', transition: 'color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.color = '#fff'} onMouseOut={(e) => e.currentTarget.style.color = '#a0a0a0'} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
+            {/* 🚀 FIXED: Button label updated */}
             <button style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: '1px solid #444', color: '#e0e0e0', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>
-               Work week
+               Full week
             </button>
             <button style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: '1px solid #444', color: '#e0e0e0', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>
               <Filter size={14} /> Filter applied
             </button>
-            <button style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#5c9ce6', border: 'none', color: '#121212', fontWeight: '600', padding: '6px 16px', borderRadius: '4px', cursor: 'pointer' }}>
-              <Plus size={16} /> New
+            <button style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#5c9ce6', border: 'none', color: '#121212', fontWeight: '600', padding: '6px 16px', borderRadius: '4px', cursor: 'pointer', transition: 'background 0.2s' }}>
+              <Plus size={16} /> New Entry
             </button>
           </div>
         </div>
@@ -148,8 +208,8 @@ const App = () => {
         {/* Calendar Grid */}
         <div style={{ display: 'flex', flex: 1, overflowY: 'auto' }}>
           {/* Time Column */}
-          <div style={{ width: '60px', borderRight: '1px solid #333', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ height: '50px', borderBottom: '1px solid #333' }}></div> {/* Empty corner */}
+          <div style={{ width: '60px', borderRight: '1px solid #333', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+            <div style={{ height: '50px', borderBottom: '1px solid #333' }}></div>
             {times.map(time => (
               <div key={time} style={{ height: '80px', borderBottom: '1px solid #333', color: '#888', fontSize: '0.75rem', padding: '8px', textAlign: 'right' }}>
                 {time}
@@ -159,22 +219,32 @@ const App = () => {
           
           {/* Days Columns */}
           <div style={{ display: 'flex', flex: 1 }}>
-            {days.map((day, idx) => (
-              <div key={day} style={{ flex: 1, borderRight: '1px solid #333', display: 'flex', flexDirection: 'column' }}>
+            {generatedDays.map((day, idx) => (
+              // Weekends get a slightly darker background to distinguish them
+              <div key={day.id} style={{ flex: 1, borderRight: '1px solid #333', display: 'flex', flexDirection: 'column', background: day.isToday ? 'rgba(92, 156, 230, 0.05)' : (day.name === 'Sat' || day.name === 'Sun' ? '#181818' : 'transparent'), minWidth: '100px' }}>
                 <div style={{ height: '50px', borderBottom: '1px solid #333', padding: '8px 12px', color: idx === 0 ? '#5c9ce6' : '#e0e0e0', fontWeight: '500' }}>
-                  <div style={{ fontSize: '1.2rem' }}>{day.split(' ')[0]}</div>
-                  <div style={{ fontSize: '0.75rem', color: '#888' }}>{day.split(' ')[1]}</div>
+                  <div style={{ fontSize: '1.2rem' }}>{day.num}</div>
+                  <div style={{ fontSize: '0.75rem', color: idx === 0 ? '#5c9ce6' : '#888' }}>{day.name}</div>
                 </div>
-                {times.map(time => (
-                  <div key={`${day}-${time}`} style={{ height: '80px', borderBottom: '1px solid #2a2a2a', position: 'relative' }}>
-                     {/* Mock Event - you will dynamically populate this later! */}
-                     {idx === 2 && time === '10 AM' && (
-                        <div style={{ position: 'absolute', top: '10px', left: '4px', right: '4px', background: 'rgba(92, 156, 230, 0.15)', borderLeft: '3px solid #5c9ce6', padding: '4px 8px', borderRadius: '2px', fontSize: '0.75rem', color: '#5c9ce6' }}>
-                           PO Expiry: 4800181485
-                        </div>
-                     )}
-                  </div>
-                ))}
+                
+                {times.map(time => {
+                  const activeDeadlines = time === '10 AM' ? getDeadlinesForDay(day.dateObj) : [];
+
+                  return (
+                    <div key={`${day.id}-${time}`} style={{ height: '80px', borderBottom: '1px solid #2a2a2a', position: 'relative' }}>
+                       {activeDeadlines.map((po, dIdx) => (
+                          <div 
+                            key={po.id} 
+                            onClick={() => loadPastPO(po.id)}
+                            title="Click to view PO details"
+                            style={{ position: 'absolute', top: `${10 + (dIdx * 30)}px`, left: '4px', right: '4px', background: 'rgba(239, 68, 68, 0.15)', borderLeft: '3px solid #ef4444', padding: '4px 8px', borderRadius: '2px', fontSize: '0.75rem', color: '#ef4444', cursor: 'pointer', zIndex: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                          >
+                             Expiry: {po.po_number || po.filename.substring(0, 15)}
+                          </div>
+                       ))}
+                    </div>
+                  )
+                })}
               </div>
             ))}
           </div>
@@ -226,8 +296,6 @@ const App = () => {
                 <ProfileRow icon={<Shield size={18}/>} label="Conditions of Agreement" data={result.conditions_of_agreement} />
                 <ProfileRow icon={<DollarSign size={18}/>} label="Payment Conditions" data={result.conditions_of_payment} />
             </div>
-            
-            {/* Keeping it clean: You can drop the line_items table back in here easily! */}
         </div>
       )}
     </div>
@@ -267,7 +335,7 @@ const App = () => {
                 >
                     <div style={{ fontSize: '0.9rem', fontWeight: '500', color: '#d0d0d0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{po.filename}</div>
                     <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }}></div> {po.status}
+                        
                     </div>
                 </div>
             ))}
