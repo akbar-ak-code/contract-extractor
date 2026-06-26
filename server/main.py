@@ -167,9 +167,17 @@ async def process_contract_profile(file: UploadFile = File(...), db: Session = D
         raise HTTPException(status_code=500, detail="An internal server error occurred during extraction.")
 @app.get("/api/pos")
 async def get_po_history(db: Session = Depends(get_db)):
-    """Fetches a lightweight list of all processed POs for the sidebar."""
+    """Fetches history AND the extracted dates for the Calendar UI."""
     records = db.query(PurchaseOrderRecord).order_by(PurchaseOrderRecord.created_at.desc()).all()
-    return [{"id": r.id, "filename": r.filename, "status": r.status} for r in records]
+    return [
+        {
+            "id": r.id, 
+            "filename": r.filename, 
+            "status": r.status,
+            "po_number": r.po_number,                
+            "lapse_expiry_date": r.lapse_expiry_date 
+        } for r in records
+    ]
 
 @app.get("/api/pos/{po_id}")
 async def get_po_details(po_id: int, db: Session = Depends(get_db)):

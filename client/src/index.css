@@ -1,3 +1,40 @@
+@import "tailwindcss";
+@import "tailwindcss";
+
+/* --- Fix Calendar White Backgrounds --- */
+.rbc-off-range-bg {
+  background-color: #121212 !important; /* Forces off-month days to be dark */
+}
+
+.rbc-month-view, .rbc-time-view, .rbc-agenda-view {
+  background-color: #1c1c1c !important;
+  border-color: #333 !important;
+}
+
+.rbc-day-bg {
+  border-left: 1px solid #333 !important;
+}
+
+.rbc-month-row {
+  border-top: 1px solid #333 !important;
+}
+
+.rbc-header {
+  border-bottom: 1px solid #333 !important;
+  border-left: 1px solid #333 !important;
+  color: #a0a0a0 !important;
+  padding: 10px 0 !important;
+}
+
+/* Fix Calendar Header Text & Buttons */
+.rbc-toolbar button {
+  color: #e0e0e0 !important;
+}
+.rbc-toolbar button.rbc-active {
+  background-color: #5c9ce6 !important;
+  color: #121212 !important;
+  border-color: #5c9ce6 !important;
+}
 :root {
   --text: #6b6375;
   --text-h: #08060d;
