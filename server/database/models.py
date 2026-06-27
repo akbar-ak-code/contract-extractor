@@ -8,11 +8,7 @@ class PurchaseOrderRecord(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     filename = Column(String, index=True)
-    
-    # 🔐 NEW: The SHA-256 Cryptographic Hash for Deduplication
     file_hash = Column(String, unique=True, index=True)
-    
-    # 📁 The critical column for your Reference feature!
     pdf_file_path = Column(String) 
     
     # 📝 Extracted AI Fields
@@ -26,15 +22,12 @@ class PurchaseOrderRecord(Base):
     conditions_of_payment = Column(Text)
     authorising_signatory = Column(String)
     
-    # Nested Tabular Data
     line_items = Column(JSON)
-
-    # Source Quotes for the UI Reference Feature
     source_quotes = Column(JSON)
-
-    # Human-in-the-Loop Workflow Tracking
-    status = Column(String, default="Pending Review") 
     
-    # Timestamps
+    # 🆕 Audit Trail for manual overrides
+    edit_history = Column(JSON, default=list)
+
+    status = Column(String, default="Pending Review") 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

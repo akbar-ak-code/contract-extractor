@@ -2,13 +2,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Calendar as CalendarIcon, FileText } from 'lucide-react';
 
-
 import Sidebar from './components/Sidebar';
 import CalendarView from './components/CalendarView';
 import ExtractionView from './components/ExtractionView';
 import SourceSidebar from './components/SourceSidebar';
 
 const App = () => {
+  const [dbId, setDbId] = useState(null); 
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -41,24 +41,27 @@ const App = () => {
       const data = await res.json();
       setResult(data.extraction_result.profile);
       setFile({ name: data.filename });
+      setDbId(data.db_id);
     } catch (err) {
       setError("Failed to load PO details.");
     } finally {
       setLoading(false);
     }
   };
-const handleDeletePO = async (id, e) => {
-    e.stopPropagation(); // Stops the row click from triggering loadPastPO
+
+  const handleDeletePO = async (id, e) => {
+    e.stopPropagation(); 
     if (!window.confirm("Are you sure you want to permanently delete this document?")) return;
 
     try {
       const res = await fetch(`http://localhost:8000/api/pos/${id}`, { method: 'DELETE' });
       if (res.ok) {
-        fetchHistory(); // Instantly update the sidebar and calendar
-        setResult(null); // Clear the screen to avoid showing deleted data
+        fetchHistory(); 
+        setResult(null); 
         setFile(null);
         setActiveSource(null);
         setActiveTab('extraction');
+        setDbId(null);
       } else {
         console.error("Failed to delete the file.");
       }
@@ -66,6 +69,45 @@ const handleDeletePO = async (id, e) => {
       console.error("Network error during deletion:", err);
     }
   };
+
+  const handleFieldUpdate = async (id, field, value) => {
+    if (!id) return;
+    try {
+      const res = await fetch(`http://localhost:8000/api/pos/${id}/field`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ field, value })
+      });
+
+      if (res.ok) {
+        // 🚀 Optimistic UI Update: Update value AND push to history array!
+        setResult(prev => {
+          const oldVal = prev[field].value;
+          const currentHistory = prev[field].history || [];
+          
+          return {
+            ...prev,
+            [field]: { 
+              ...prev[field], 
+              value: value,
+              // Instantly add the new edit to the local state so the dropdown shows it
+              history: [...currentHistory, { 
+                old_value: oldVal, 
+                new_value: value, 
+                timestamp: new Date().toISOString() 
+              }]
+            }
+          };
+        });
+        fetchHistory(); 
+      } else {
+        console.error("Failed to update field in database.");
+      }
+    } catch (err) {
+      console.error("Network error during update", err);
+    }
+  };
+
   const handleAnalyze = async () => {
     if (!file) return;
     setLoading(true); setError(null); setActiveSource(null);
@@ -75,6 +117,7 @@ const handleDeletePO = async (id, e) => {
       const data = await response.json();
       if (response.ok && data.extraction_result.status === "success") {
         setResult(data.extraction_result.profile);
+        setDbId(data.db_id);
         fetchHistory();
       } else {
         setError(data.extraction_result?.message || "Failed to process.");
@@ -88,7 +131,12 @@ const handleDeletePO = async (id, e) => {
 
   const handleFileSelection = (selectedFile) => {
     if (selectedFile.type !== "application/pdf") return setError("Valid PDF required.");
-    setFile(selectedFile); setError(null); setResult(null); setActiveSource(null); setActiveTab('extraction');
+    setFile(selectedFile); 
+    setError(null); 
+    setResult(null); 
+    setActiveSource(null); 
+    setActiveTab('extraction');
+    setDbId(null);
   };
 
   const tabBtn = (active) =>
@@ -102,9 +150,15 @@ const handleDeletePO = async (id, e) => {
     <div className="flex h-screen bg-[#0a0a0a] font-sans text-neutral-200 antialiased">
       <Sidebar 
         history={history} 
-        onNewUpload={() => {setResult(null); setFile(null); setActiveSource(null); setActiveTab('extraction');}} 
+        onNewUpload={() => {
+          setResult(null); 
+          setFile(null); 
+          setActiveSource(null); 
+          setActiveTab('extraction'); 
+          setDbId(null);
+        }} 
         onLoadPO={loadPastPO} 
-        onDeletePO={handleDeletePO} // 🆕 Add this new prop!
+        onDeletePO={handleDeletePO}
       />
 
       <main className="flex flex-1 flex-col overflow-y-auto bg-gradient-to-br from-[#101012] via-[#0d0d0f] to-[#0a0a0c] px-12 py-8">
@@ -139,6 +193,8 @@ const handleDeletePO = async (id, e) => {
               handleFileSelection={handleFileSelection}
               handleAnalyze={handleAnalyze}
               setActiveSource={setActiveSource}
+              dbId={dbId}
+              onUpdate={handleFieldUpdate}
             />
           )}
         </div>

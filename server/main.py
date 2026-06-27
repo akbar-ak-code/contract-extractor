@@ -5,15 +5,14 @@ import shutil
 import os
 import uuid
 import hashlib
+from datetime import datetime
 
-# Updated Imports using the new folder structure
 from database.connection import engine, Base, get_db
 from database.models import PurchaseOrderRecord
 
 from extractor.ingestion import extract_and_chunk_pdf
 from extractor.extraction import extract_contract_profile_with_combined_pipeline
 
-# Automatically create the database tables if they don't exist
 Base.metadata.create_all(bind=engine)
 app = FastAPI()
 
@@ -25,7 +24,6 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# 1. 🆕 Change to permanent storage so the frontend can request the PDF later!
 PERMANENT_STORAGE_DIR = "document_storage"
 os.makedirs(PERMANENT_STORAGE_DIR, exist_ok=True)
 
@@ -90,9 +88,7 @@ async def process_contract_profile(file: UploadFile = File(...), db: Session = D
             "extraction_result": {"status": "success", "profile": cached_profile}
         }
 
-    # ==========================================
-    # IF NO CACHE HIT: Proceed with AI Extraction
-    # ==========================================
+
     print(f"⚙️ NO CACHE FOUND. Running AI Pipeline for: {file.filename}")
     
     unique_filename = f"{uuid.uuid4().hex}_{file.filename}"
@@ -211,7 +207,6 @@ async def delete_purchase_order(po_id: int, db: Session = Depends(get_db)):
     if not record:
         raise HTTPException(status_code=404, detail="PO not found")
         
-    # 1. Delete the physical PDF file from the disk
     if record.pdf_file_path and os.path.exists(record.pdf_file_path):
         try:
             os.remove(record.pdf_file_path)
@@ -219,8 +214,69 @@ async def delete_purchase_order(po_id: int, db: Session = Depends(get_db)):
         except Exception as e:
             print(f"⚠️ Warning: Could not delete physical file: {e}")
 
-    # 2. Wipe the database record
     db.delete(record)
     db.commit()
     
     return {"status": "success", "message": f"PO {po_id} deleted successfully"}
+
+
+@app.patch("/api/pos/{po_id}/field")
+async def update_po_field(po_id: int, payload: dict, db: Session = Depends(get_db)):
+    """Updates a single field and logs the change in edit_history."""
+    record = db.query(PurchaseOrderRecord).filter(PurchaseOrderRecord.id == po_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="PO not found")
+
+    field = payload.get("field")
+    new_value = payload.get("value")
+
+    # Get the old value before overwriting
+    old_value = getattr(record, field, None)
+
+    # Prepare the history log
+    history_log = record.edit_history or []
+    history_log.append({
+        "field": field,
+        "old_value": old_value,
+        "new_value": new_value,
+        "timestamp": datetime.utcnow().isoformat()
+    })
+
+    # Update the actual column and the history JSON
+    setattr(record, field, new_value)
+    record.edit_history = history_log
+    
+    # Optional: Change status to indicate human review
+    record.status = "Manually Verified" 
+
+    db.commit()
+    return {"status": "success", "message": f"{field} updated"}
+@app.get("/api/pos/{po_id}")
+async def get_po_details(po_id: int, db: Session = Depends(get_db)):
+    """Fetches the full extracted details of a specific PO, including edit history."""
+    record = db.query(PurchaseOrderRecord).filter(PurchaseOrderRecord.id == po_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="PO not found")
+        
+    quotes = record.source_quotes or {}
+    full_history = record.edit_history or []
+
+    # Helper function to grab history for just one specific field
+    def get_hist(field_name):
+        return [h for h in full_history if h.get("field") == field_name]
+    
+    # Reconstruct the profile with the new history array attached to every field!
+    cached_profile = {
+        "po_number": {"value": record.po_number, "source_quote": quotes.get("po_number", ""), "history": get_hist("po_number")},
+        "vendor_name": {"value": record.vendor_name, "source_quote": quotes.get("vendor_name", ""), "history": get_hist("vendor_name")},
+        "vendor_contact_address": {"value": record.vendor_contact_address, "source_quote": quotes.get("vendor_contact_address", ""), "history": get_hist("vendor_contact_address")},
+        "effective_date": {"value": record.effective_date, "source_quote": quotes.get("effective_date", ""), "history": get_hist("effective_date")},
+        "lapse_expiry_date": {"value": record.lapse_expiry_date, "source_quote": quotes.get("lapse_expiry_date", ""), "history": get_hist("lapse_expiry_date")},
+        "total_value": {"value": record.total_value, "source_quote": quotes.get("total_value", ""), "history": get_hist("total_value")},
+        "conditions_of_agreement": {"value": record.conditions_of_agreement, "source_quote": quotes.get("conditions_of_agreement", ""), "history": get_hist("conditions_of_agreement")},
+        "conditions_of_payment": {"value": record.conditions_of_payment, "source_quote": quotes.get("conditions_of_payment", ""), "history": get_hist("conditions_of_payment")},
+        "authorising_signatory": {"value": record.authorising_signatory, "source_quote": quotes.get("authorising_signatory", ""), "history": get_hist("authorising_signatory")},
+        "line_items": {"status": "found" if record.line_items else "not_found", "value": record.line_items}
+    }
+    
+    return {"filename": record.filename, "db_id": record.id, "extraction_result": {"status": "success", "profile": cached_profile}}
