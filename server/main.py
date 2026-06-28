@@ -6,6 +6,7 @@ import os
 import uuid
 import hashlib
 from datetime import datetime
+from fastapi.responses import FileResponse
 
 from database.connection import engine, Base, get_db
 from database.models import PurchaseOrderRecord
@@ -175,30 +176,6 @@ async def get_po_history(db: Session = Depends(get_db)):
         } for r in records
     ]
 
-@app.get("/api/pos/{po_id}")
-async def get_po_details(po_id: int, db: Session = Depends(get_db)):
-    """Fetches the full extracted details of a specific PO."""
-    record = db.query(PurchaseOrderRecord).filter(PurchaseOrderRecord.id == po_id).first()
-    if not record:
-        raise HTTPException(status_code=404, detail="PO not found")
-        
-    quotes = record.source_quotes or {}
-    
-    # Reconstruct the profile
-    cached_profile = {
-        "po_number": {"value": record.po_number, "source_quote": quotes.get("po_number", ""), "model_used": "Database"},
-        "vendor_name": {"value": record.vendor_name, "source_quote": quotes.get("vendor_name", ""), "model_used": "Database"},
-        "vendor_contact_address": {"value": record.vendor_contact_address, "source_quote": quotes.get("vendor_contact_address", ""), "model_used": "Database"},
-        "effective_date": {"value": record.effective_date, "source_quote": quotes.get("effective_date", ""), "model_used": "Database"},
-        "lapse_expiry_date": {"value": record.lapse_expiry_date, "source_quote": quotes.get("lapse_expiry_date", ""), "model_used": "Database"},
-        "total_value": {"value": record.total_value, "source_quote": quotes.get("total_value", ""), "model_used": "Database"},
-        "conditions_of_agreement": {"value": record.conditions_of_agreement, "source_quote": quotes.get("conditions_of_agreement", ""), "model_used": "Database"},
-        "conditions_of_payment": {"value": record.conditions_of_payment, "source_quote": quotes.get("conditions_of_payment", ""), "model_used": "Database"},
-        "authorising_signatory": {"value": record.authorising_signatory, "source_quote": quotes.get("authorising_signatory", ""), "model_used": "Database"},
-        "line_items": {"status": "found" if record.line_items else "not_found", "value": record.line_items, "model_used": "Database"}
-    }
-    
-    return {"filename": record.filename, "db_id": record.id, "extraction_result": {"status": "success", "profile": cached_profile}}
 @app.delete("/api/pos/{po_id}")
 async def delete_purchase_order(po_id: int, db: Session = Depends(get_db)):
     """Deletes a PO from the database and removes the physical file."""
@@ -280,3 +257,43 @@ async def get_po_details(po_id: int, db: Session = Depends(get_db)):
     }
     
     return {"filename": record.filename, "db_id": record.id, "extraction_result": {"status": "success", "profile": cached_profile}}
+@app.get("/api/pos/{po_id}/pdf")
+async def get_po_pdf(po_id: int, db: Session = Depends(get_db)):
+    """Serves the physical PDF file for the in-app viewer."""
+    record = db.query(PurchaseOrderRecord).filter(PurchaseOrderRecord.id == po_id).first()
+    
+    if not record or not record.pdf_file_path or not os.path.exists(record.pdf_file_path):
+        raise HTTPException(status_code=404, detail="PDF file not found on server.")
+        
+    return FileResponse(record.pdf_file_path, media_type="application/pdf")
+
+@app.get("/api/pos/{po_id}/find-page")
+async def find_quote_page(po_id: int, quote: str, db: Session = Depends(get_db)):
+    """Searches the PDF text layer to find which page number contains the given quote."""
+    import fitz
+    record = db.query(PurchaseOrderRecord).filter(PurchaseOrderRecord.id == po_id).first()
+    
+    if not record or not record.pdf_file_path or not os.path.exists(record.pdf_file_path):
+        raise HTTPException(status_code=404, detail="PDF file not found on server.")
+
+    search_snippet = quote.strip()[:60].lower()
+    if not search_snippet:
+        return {"page": 1}
+
+    try:
+        doc = fitz.open(record.pdf_file_path)
+        # First pass: try matching first 60 chars
+        for i, page in enumerate(doc):
+            page_text = page.get_text("text").lower()
+            if search_snippet in page_text:
+                return {"page": i + 1}
+        # Second pass: try shorter 30-char snippet (handles minor whitespace differences)
+        short_snippet = search_snippet[:30]
+        for i, page in enumerate(doc):
+            page_text = page.get_text("text").lower()
+            if short_snippet in page_text:
+                return {"page": i + 1}
+    except Exception as e:
+        print(f"⚠️ find-page error: {e}")
+
+    return {"page": 1}

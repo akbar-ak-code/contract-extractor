@@ -7,8 +7,6 @@ CACHE_FILE = "po_cache.json"
 LOCAL_MODEL_NAME = "akdeniz27/roberta-base-cuad"
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-# Hybrid routing architecture for Purchase Orders
-# RoBERTa struggles with tabular PO data, so all fields are routed to the generative LLM.
 FIELD_MODEL_MAP = {
     "po_number": "gemini",
     "vendor_name": "gemini",

@@ -9,74 +9,81 @@ const ProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActiveSour
 
   const val = data?.value || "Not found";
   const quote = data?.source_quote || "No source quote extracted.";
-  const isMissing = val === "Not found" || val === "N/A" || val === "";
-  
+  const isMissing = !val || val === "Not found" || val === "N/A" || val === "not_found" || val === "";
+
   const historyLog = data?.history || [];
   const hasHistory = historyLog.length > 0;
 
   const handleSave = async () => {
-    if (tempVal !== val) {
-      await onUpdate(dbId, fieldKey, tempVal);
-    }
+    if (tempVal !== val) await onUpdate(dbId, fieldKey, tempVal);
     setIsEditing(false);
   };
 
   return (
-    <div className="group grid grid-cols-12 items-start gap-4 border-b border-white/[0.04] px-6 py-4 transition-colors hover:bg-white/[0.02] last:border-b-0">
-      
-      {/* 1. Icon & Label */}
-      <div className="col-span-12 sm:col-span-3 flex items-center gap-3 text-zinc-400 mt-1">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400 ring-1 ring-inset ring-blue-500/20">
-          {icon}
-        </span>
-        <span className="text-sm font-medium tracking-tight">{label}</span>
+    <div
+      className="group border-b border-white/[0.04] last:border-b-0 transition-colors hover:bg-white/[0.02]"
+      style={{ display: 'flex', alignItems: 'flex-start', padding: '14px 20px', gap: 0 }}
+    >
+      {/* 1. Icon + Label — fixed width, never wraps awkwardly */}
+      <div style={{ flexShrink: 0, width: 156, display: 'flex', alignItems: 'flex-start', gap: 9, paddingTop: 1 }}>
+        <span style={{
+          flexShrink: 0, width: 28, height: 28, borderRadius: 7,
+          background: 'rgba(59,130,246,0.1)', color: '#60a5fa',
+          boxShadow: 'inset 0 0 0 1px rgba(59,130,246,0.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>{icon}</span>
+        <span style={{ fontSize: 12, fontWeight: 500, color: '#a1a1aa', lineHeight: 1.4, paddingTop: 6 }}>{label}</span>
       </div>
 
-      {/* 2. Value Input / Display & History Dropdown */}
-      <div className={`col-span-10 sm:col-span-7 flex flex-col gap-2 ${isMissing && !isEditing ? 'text-red-400/90 italic' : 'text-zinc-100'}`}>
-        
-        {/* Main Text / Input Area */}
-        <div className="text-sm leading-relaxed">
-          {isEditing ? (
-             <textarea
-               value={tempVal}
-               onChange={(e) => setTempVal(e.target.value)}
-               className="w-full min-h-[40px] bg-[#242424] border border-blue-500/50 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 resize-y"
-               autoFocus
-             />
-          ) : (
-            isMissing ? (
-              <span className="inline-flex items-center gap-1.5 rounded-md bg-red-500/10 px-2 py-1 text-xs font-medium ring-1 ring-inset ring-red-500/20">
-                <AlertTriangle size={12} /> {val}
-              </span>
-            ) : (
-              val
-            )
-          )}
-        </div>
+      {/* 2. Value — grows to fill space, wraps naturally */}
+      <div style={{ flex: 1, minWidth: 0, paddingLeft: 12, paddingTop: 2 }}>
+        {isEditing ? (
+          <textarea
+            value={tempVal}
+            onChange={e => setTempVal(e.target.value)}
+            autoFocus
+            style={{
+              width: '100%', minHeight: 56, background: '#242424',
+              border: '1px solid rgba(59,130,246,0.5)', borderRadius: 6,
+              padding: '7px 11px', fontSize: 13, color: '#fff',
+              outline: 'none', resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box'
+            }}
+          />
+        ) : isMissing ? (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5,
+            background: 'rgba(239,68,68,0.1)', color: '#f87171', fontStyle: 'italic',
+            padding: '2px 8px', borderRadius: 5, boxShadow: 'inset 0 0 0 1px rgba(239,68,68,0.2)'
+          }}>
+            <AlertTriangle size={11} /> Not found
+          </span>
+        ) : (
+          <span style={{ fontSize: 13, color: '#e4e4e7', lineHeight: 1.65, wordBreak: 'break-word', display: 'block' }}>{val}</span>
+        )}
 
-        {/* History Dropdown */}
         {hasHistory && !isEditing && (
-          <div className="mt-1">
+          <div style={{ marginTop: 7 }}>
             <button
-              onClick={() => setShowHistory(!showHistory)}
-              className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-2.5 py-1 text-[11px] font-medium text-blue-400 hover:bg-blue-500/20 transition-colors cursor-pointer"
+              onClick={() => setShowHistory(s => !s)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5,
+                background: 'rgba(59,130,246,0.1)', color: '#60a5fa', border: 'none',
+                padding: '2px 9px', borderRadius: 999, cursor: 'pointer', fontWeight: 500
+              }}
             >
-              <History size={12} />
-              Edited ({historyLog.length})
-              {showHistory ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              <History size={10} /> Edited ({historyLog.length}) {showHistory ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
             </button>
-            
             {showHistory && (
-              <div className="mt-3 overflow-hidden rounded-lg border border-white/5 bg-black/40 p-1 shadow-inner animate-in slide-in-from-top-2 duration-200">
-                {historyLog.slice().reverse().map((entry, idx) => ( 
-                  <div key={idx} className="flex flex-col gap-1 border-b border-white/5 p-3 last:border-0">
-                    <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">
+              <div style={{ marginTop: 6, borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.4)', overflow: 'hidden' }}>
+                {historyLog.slice().reverse().map((entry, idx) => (
+                  <div key={idx} style={{ padding: '9px 13px', borderBottom: idx < historyLog.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                    <div style={{ fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#52525b', fontWeight: 600, marginBottom: 3 }}>
                       {new Date(entry.timestamp).toLocaleString()}
-                    </span>
-                    <div className="text-xs text-zinc-300">
-                      Changed from <span className="text-red-400 line-through mr-1">{entry.old_value || "Empty"}</span> 
-                      to <span className="text-emerald-400 ml-1">{entry.new_value}</span>
+                    </div>
+                    <div style={{ fontSize: 11.5, color: '#d4d4d8' }}>
+                      <span style={{ color: '#f87171', textDecoration: 'line-through', marginRight: 5 }}>{entry.old_value || 'Empty'}</span>
+                      →
+                      <span style={{ color: '#34d399', marginLeft: 5 }}>{entry.new_value}</span>
                     </div>
                   </div>
                 ))}
@@ -86,32 +93,32 @@ const ProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActiveSour
         )}
       </div>
 
-      {/* 3. Action Buttons */}
-      <div className="col-span-2 sm:col-span-2 flex justify-end gap-2 mt-1">
+      {/* 3. Buttons — fixed width, never squish */}
+      <div style={{ flexShrink: 0, display: 'flex', gap: 5, paddingLeft: 10, paddingTop: 1 }}>
         {isEditing ? (
           <>
-            <button onClick={handleSave} className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors cursor-pointer" title="Save">
-              <Check size={16} />
+            <button onClick={handleSave} title="Save"
+              style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(52,211,153,0.1)', border: 'none', color: '#34d399', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Check size={14} />
             </button>
-            <button onClick={() => { setTempVal(val); setIsEditing(false); }} className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors cursor-pointer" title="Cancel">
-              <X size={16} />
+            <button onClick={() => { setTempVal(val); setIsEditing(false); }} title="Cancel"
+              style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(239,68,68,0.1)', border: 'none', color: '#f87171', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <X size={14} />
             </button>
           </>
         ) : (
           <>
-            <button
-              onClick={() => setIsEditing(true)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/5 bg-white/[0.03] text-zinc-400 opacity-60 transition-all hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-blue-400 hover:opacity-100 group-hover:opacity-100 cursor-pointer"
-              title="Edit Field"
-            >
-              <Edit2 size={14} />
+            <button onClick={() => setIsEditing(true)} title="Edit"
+              style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: '#71717a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.background='rgba(59,130,246,0.12)'; e.currentTarget.style.color='#60a5fa'; e.currentTarget.style.borderColor='rgba(59,130,246,0.4)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.03)'; e.currentTarget.style.color='#71717a'; e.currentTarget.style.borderColor='rgba(255,255,255,0.06)'; }}>
+              <Edit2 size={12} />
             </button>
-            <button
-              onClick={() => setActiveSource({ label, quote })}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/5 bg-white/[0.03] text-zinc-400 opacity-60 transition-all hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-blue-400 hover:opacity-100 group-hover:opacity-100 cursor-pointer"
-              title="View Source in PDF"
-            >
-              <Hash size={14} />
+            <button onClick={() => setActiveSource({ label, quote })} title="View Source"
+              style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: '#71717a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.background='rgba(59,130,246,0.12)'; e.currentTarget.style.color='#60a5fa'; e.currentTarget.style.borderColor='rgba(59,130,246,0.4)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.03)'; e.currentTarget.style.color='#71717a'; e.currentTarget.style.borderColor='rgba(255,255,255,0.06)'; }}>
+              <Hash size={12} />
             </button>
           </>
         )}
@@ -122,11 +129,11 @@ const ProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActiveSour
 
 const Card = ({ title, icon, children }) => (
   <section className="overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-[#1a1a1d] to-[#141416] shadow-2xl shadow-black/40 backdrop-blur-xl">
-    <header className="flex items-center gap-2.5 border-b border-white/[0.06] bg-white/[0.02] px-6 py-4">
-      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-500/10 text-blue-400 ring-1 ring-inset ring-blue-500/20">
+    <header className="flex items-center gap-2.5 border-b border-white/[0.06] bg-white/[0.02] px-5 py-3.5">
+      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-500/10 text-blue-400 ring-1 ring-inset ring-blue-500/20">
         {icon}
       </span>
-      <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-200">{title}</h2>
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">{title}</h2>
     </header>
     <div>{children}</div>
   </section>
@@ -157,8 +164,8 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
           )}
           {loading && (
             <div className="mt-8 flex flex-col items-center gap-3 text-blue-400">
-              <div className="spinner h-8 w-8 rounded-full border-2 border-blue-500/20 border-t-blue-400 animate-spin" />
-              <p className="text-sm font-medium tracking-tight">Processing via Gemini 3.5 Flash...</p>
+              <div className="h-8 w-8 rounded-full border-2 border-blue-500/20 border-t-blue-400 animate-spin" />
+              <p className="text-sm font-medium tracking-tight">Processing via Gemini Flash...</p>
             </div>
           )}
           {error && (
@@ -169,51 +176,50 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
         </div>
       </div>
     ) : (
-      <div className="flex flex-col gap-6">
-        <Card title="Document Headers" icon={<FileText size={14} />}>
-          <ProfileRow icon={<Hash size={16} />} label="PO Number" fieldKey="po_number" data={result.po_number} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
-          <ProfileRow icon={<Building size={16} />} label="Vendor Name" fieldKey="vendor_name" data={result.vendor_name} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
-          <ProfileRow icon={<MapPin size={16} />} label="Contact & Address" fieldKey="vendor_contact_address" data={result.vendor_contact_address} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
-          <ProfileRow icon={<Clock size={16} />} label="Effective Date" fieldKey="effective_date" data={result.effective_date} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
-          <ProfileRow icon={<AlertTriangle size={16} />} label="Lapse / Expiry" fieldKey="lapse_expiry_date" data={result.lapse_expiry_date} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
-          <ProfileRow icon={<DollarSign size={16} />} label="Total Value" fieldKey="total_value" data={result.total_value} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
+      <div className="flex flex-col gap-5">
+        <Card title="Document Headers" icon={<FileText size={13} />}>
+          <ProfileRow icon={<Hash size={14} />}        label="PO Number"         fieldKey="po_number"               data={result.po_number}               dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
+          <ProfileRow icon={<Building size={14} />}    label="Vendor Name"       fieldKey="vendor_name"             data={result.vendor_name}             dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
+          <ProfileRow icon={<MapPin size={14} />}      label="Contact & Address" fieldKey="vendor_contact_address"  data={result.vendor_contact_address}  dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
+          <ProfileRow icon={<Clock size={14} />}       label="Effective Date"    fieldKey="effective_date"          data={result.effective_date}          dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
+          <ProfileRow icon={<AlertTriangle size={14}/>}label="Lapse / Expiry"   fieldKey="lapse_expiry_date"       data={result.lapse_expiry_date}       dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
+          <ProfileRow icon={<DollarSign size={14} />}  label="Total Value"       fieldKey="total_value"             data={result.total_value}             dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
         </Card>
 
-        <Card title="Terms & Conditions" icon={<Shield size={14} />}>
-          <ProfileRow icon={<Shield size={16} />} label="Conditions of Agreement" fieldKey="conditions_of_agreement" data={result.conditions_of_agreement} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
-          <ProfileRow icon={<DollarSign size={16} />} label="Payment Conditions" fieldKey="conditions_of_payment" data={result.conditions_of_payment} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
+        <Card title="Terms & Conditions" icon={<Shield size={13} />}>
+          <ProfileRow icon={<Shield size={14} />}      label="Conditions"        fieldKey="conditions_of_agreement" data={result.conditions_of_agreement} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
+          <ProfileRow icon={<DollarSign size={14} />}  label="Payment Terms"     fieldKey="conditions_of_payment"   data={result.conditions_of_payment}   dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
         </Card>
 
-        <Card title="Signatures" icon={<Edit3 size={14} />}>
-          <ProfileRow icon={<Edit3 size={16} />} label="Authorising Signatory" fieldKey="authorising_signatory" data={result.authorising_signatory} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
+        <Card title="Signatures" icon={<Edit3 size={13} />}>
+          <ProfileRow icon={<Edit3 size={14} />}       label="Signatory"         fieldKey="authorising_signatory"   data={result.authorising_signatory}   dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
         </Card>
 
-        <Card title="Line Items" icon={<List size={14} />}>
-          <div className="p-6">
-            {result.line_items?.status === "found" && result.line_items.value.length > 0 ? (
+        <Card title="Line Items" icon={<List size={13} />}>
+          <div className="p-5">
+            {result.line_items?.status === "found" && result.line_items.value?.length > 0 ? (
               <div className="overflow-hidden rounded-xl border border-white/[0.06]">
                 <table className="w-full border-collapse text-sm text-zinc-100">
                   <thead>
                     <tr className="bg-white/[0.03] text-left">
-                      <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Description</th>
-                      <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Qty</th>
-                      <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Unit Price</th>
-                      <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Source</th>
+                      <th className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Description</th>
+                      <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Qty</th>
+                      <th className="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Unit Price</th>
+                      <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Src</th>
                     </tr>
                   </thead>
                   <tbody>
                     {result.line_items.value.map((item, idx) => (
                       <tr key={idx} className="border-t border-white/[0.04] transition-colors hover:bg-white/[0.02]">
-                        <td className="px-4 py-3.5 leading-relaxed">{item.description}</td>
-                        <td className="px-4 py-3.5 text-center font-mono text-zinc-300">{item.quantity}</td>
-                        <td className="px-4 py-3.5 text-right font-mono font-semibold text-emerald-400">${item.unit_price?.toFixed(2) || "0.00"}</td>
-                        <td className="px-4 py-3.5 text-center">
+                        <td className="px-4 py-3 leading-relaxed text-sm">{item.description}</td>
+                        <td className="px-4 py-3 text-center font-mono text-zinc-300 text-sm">{item.quantity}</td>
+                        <td className="px-4 py-3 text-right font-mono font-semibold text-emerald-400 text-sm">${item.unit_price?.toFixed(2) || "0.00"}</td>
+                        <td className="px-4 py-3 text-center">
                           <button
                             onClick={() => setActiveSource({ label: `Line Item ${idx + 1}`, quote: item.source_quote || "No quote found." })}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-white/5 bg-white/[0.03] text-blue-400 transition-all hover:border-blue-500/40 hover:bg-blue-500/10"
-                            title="View Source in PDF"
+                            style={{ width: 26, height: 26, borderRadius: 6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: '#60a5fa', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                           >
-                            <Hash size={12} />
+                            <Hash size={11} />
                           </button>
                         </td>
                       </tr>

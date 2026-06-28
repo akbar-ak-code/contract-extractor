@@ -1,14 +1,15 @@
 // src/App.jsx
 import React, { useState, useRef, useEffect } from 'react';
-import { Calendar as CalendarIcon, FileText } from 'lucide-react';
+import { Calendar as CalendarIcon, FileText, LayoutList } from 'lucide-react';
 
 import Sidebar from './components/Sidebar';
 import CalendarView from './components/CalendarView';
 import ExtractionView from './components/ExtractionView';
 import SourceSidebar from './components/SourceSidebar';
+import AllPOsView from './components/AllPOsView';
 
 const App = () => {
-  const [dbId, setDbId] = useState(null); 
+  const [dbId, setDbId] = useState(null);
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -50,20 +51,19 @@ const App = () => {
   };
 
   const handleDeletePO = async (id, e) => {
-    e.stopPropagation(); 
+    e.stopPropagation();
     if (!window.confirm("Are you sure you want to permanently delete this document?")) return;
-
     try {
       const res = await fetch(`http://localhost:8000/api/pos/${id}`, { method: 'DELETE' });
       if (res.ok) {
-        fetchHistory(); 
-        setResult(null); 
-        setFile(null);
-        setActiveSource(null);
-        setActiveTab('extraction');
-        setDbId(null);
-      } else {
-        console.error("Failed to delete the file.");
+        fetchHistory();
+        // If the deleted PO was currently open, reset the view
+        if (dbId === id) {
+          setResult(null);
+          setFile(null);
+          setActiveSource(null);
+          setDbId(null);
+        }
       }
     } catch (err) {
       console.error("Network error during deletion:", err);
@@ -78,30 +78,24 @@ const App = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ field, value })
       });
-
       if (res.ok) {
-        // 🚀 Optimistic UI Update: Update value AND push to history array!
         setResult(prev => {
           const oldVal = prev[field].value;
           const currentHistory = prev[field].history || [];
-          
           return {
             ...prev,
-            [field]: { 
-              ...prev[field], 
-              value: value,
-              // Instantly add the new edit to the local state so the dropdown shows it
-              history: [...currentHistory, { 
-                old_value: oldVal, 
-                new_value: value, 
-                timestamp: new Date().toISOString() 
+            [field]: {
+              ...prev[field],
+              value,
+              history: [...currentHistory, {
+                old_value: oldVal,
+                new_value: value,
+                timestamp: new Date().toISOString()
               }]
             }
           };
         });
-        fetchHistory(); 
-      } else {
-        console.error("Failed to update field in database.");
+        fetchHistory(); // sidebar updates immediately after expiry date edits
       }
     } catch (err) {
       console.error("Network error during update", err);
@@ -111,14 +105,15 @@ const App = () => {
   const handleAnalyze = async () => {
     if (!file) return;
     setLoading(true); setError(null); setActiveSource(null);
-    const formData = new FormData(); formData.append('file', file);
+    const formData = new FormData();
+    formData.append('file', file);
     try {
       const response = await fetch('http://localhost:8000/api/upload', { method: 'POST', body: formData });
       const data = await response.json();
       if (response.ok && data.extraction_result.status === "success") {
         setResult(data.extraction_result.profile);
         setDbId(data.db_id);
-        fetchHistory();
+        fetchHistory(); // sidebar updates immediately after upload
       } else {
         setError(data.extraction_result?.message || "Failed to process.");
       }
@@ -131,59 +126,94 @@ const App = () => {
 
   const handleFileSelection = (selectedFile) => {
     if (selectedFile.type !== "application/pdf") return setError("Valid PDF required.");
-    setFile(selectedFile); 
-    setError(null); 
-    setResult(null); 
-    setActiveSource(null); 
+    setFile(selectedFile);
+    setError(null);
+    setResult(null);
+    setActiveSource(null);
     setActiveTab('extraction');
     setDbId(null);
   };
 
-  const tabBtn = (active) =>
-    `flex items-center gap-2 rounded-md px-5 py-2 text-sm font-medium transition-all duration-200 ${
-      active
-        ? 'bg-gradient-to-b from-neutral-700 to-neutral-800 text-white shadow-md shadow-black/40 ring-1 ring-white/10'
-        : 'bg-transparent text-neutral-400 hover:text-neutral-200'
-    }`;
+  const TABS = [
+    { id: 'calendar',   label: 'Deadlines',  Icon: CalendarIcon },
+    { id: 'all',        label: 'All POs',    Icon: LayoutList   },
+    { id: 'extraction', label: 'Extraction', Icon: FileText     },
+  ];
+
+  const tabBtn = (active) => ({
+    display: 'flex', alignItems: 'center', gap: 6,
+    padding: '7px 18px', borderRadius: 8, border: 'none', cursor: 'pointer',
+    fontSize: 13, fontWeight: 500, transition: 'all 0.18s',
+    background: active
+      ? 'linear-gradient(to bottom, #404040, #303030)'
+      : 'transparent',
+    color: active ? '#fff' : '#737373',
+    boxShadow: active ? '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)' : 'none',
+  });
 
   return (
-    <div className="flex h-screen bg-[#0a0a0a] font-sans text-neutral-200 antialiased">
-      <Sidebar 
-        history={history} 
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#0a0a0a', color: '#e5e5e5', fontFamily: 'system-ui, sans-serif' }}>
+
+      {/* Left sidebar */}
+      <Sidebar
+        history={history}
         onNewUpload={() => {
-          setResult(null); 
-          setFile(null); 
-          setActiveSource(null); 
-          setActiveTab('extraction'); 
+          setResult(null);
+          setFile(null);
+          setActiveSource(null);
+          setActiveTab('extraction');
           setDbId(null);
-        }} 
-        onLoadPO={loadPastPO} 
+        }}
+        onLoadPO={loadPastPO}
         onDeletePO={handleDeletePO}
       />
 
-      <main className="flex flex-1 flex-col overflow-y-auto bg-gradient-to-br from-[#101012] via-[#0d0d0f] to-[#0a0a0c] px-12 py-8">
-        <header className="mb-8 flex items-center justify-between">
+      {/* Main content — min-width prevents collapse when right sidebar opens */}
+      <main style={{
+        flex: 1, minWidth: 480,
+        display: 'flex', flexDirection: 'column',
+        overflowY: 'auto', overflowX: 'hidden',
+        background: 'linear-gradient(135deg, #101012 0%, #0d0d0f 50%, #0a0a0c 100%)',
+        padding: '28px 40px',
+      }}>
+        <header style={{ marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
-            <h1 className="m-0 mb-1.5 bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-3xl font-semibold tracking-tight text-transparent">
+            <h1 style={{
+              margin: 0, marginBottom: 4, fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em',
+              background: 'linear-gradient(to right, #fff, #a3a3a3)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            }}>
               Workspace
             </h1>
-            <p className="m-0 text-sm text-neutral-500">Enterprise Hybrid Pipeline</p>
+            <p style={{ margin: 0, fontSize: 12.5, color: '#737373' }}>Enterprise Hybrid Pipeline</p>
           </div>
 
-          <div className="flex gap-1 rounded-xl border border-white/5 bg-neutral-900/60 p-1 shadow-inner backdrop-blur-sm">
-            <button onClick={() => setActiveTab('calendar')} className={tabBtn(activeTab === 'calendar')}>
-              <CalendarIcon size={15} /> Deadlines
-            </button>
-            <button onClick={() => setActiveTab('extraction')} className={tabBtn(activeTab === 'extraction')}>
-              <FileText size={15} /> Extraction
-            </button>
+          {/* Tab switcher */}
+          <div style={{
+            display: 'flex', gap: 3, borderRadius: 11,
+            border: '1px solid rgba(255,255,255,0.06)',
+            background: 'rgba(18,18,18,0.7)', padding: 4,
+          }}>
+            {TABS.map(({ id, label, Icon }) => (
+              <button key={id} onClick={() => setActiveTab(id)} style={tabBtn(activeTab === id)}>
+                <Icon size={14} /> {label}
+              </button>
+            ))}
           </div>
         </header>
 
-        <div className="flex-1">
-          {activeTab === 'calendar' ? (
+        <div style={{ flex: 1 }}>
+          {activeTab === 'calendar' && (
             <CalendarView history={history} onSelectEvent={loadPastPO} />
-          ) : (
+          )}
+          {activeTab === 'all' && (
+            <AllPOsView
+              history={history}
+              onLoadPO={loadPastPO}
+              onDeletePO={handleDeletePO}
+            />
+          )}
+          {activeTab === 'extraction' && (
             <ExtractionView
               file={file}
               loading={loading}
@@ -200,7 +230,32 @@ const App = () => {
         </div>
       </main>
 
-      <SourceSidebar activeSource={activeSource} onClose={() => setActiveSource(null)} />
+      {/* Right source sidebar — fixed overlay, never compresses main */}
+      {activeSource && dbId && (
+        <>
+          <div
+            onClick={() => setActiveSource(null)}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 40,
+              background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(1px)',
+              animation: 'fadeIn 0.2s ease',
+            }}
+          />
+          <div style={{
+            position: 'fixed', top: 0, right: 0, bottom: 0,
+            zIndex: 50, width: 600,
+            display: 'flex', flexDirection: 'column',
+          }}>
+            <SourceSidebar
+              activeSource={activeSource}
+              onClose={() => setActiveSource(null)}
+              dbId={dbId}
+            />
+          </div>
+        </>
+      )}
+
+      <style>{`@keyframes fadeIn { from { opacity:0 } to { opacity:1 } }`}</style>
     </div>
   );
 };
