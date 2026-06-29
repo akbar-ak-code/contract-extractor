@@ -1,14 +1,14 @@
-import os
+# ─────────────────────────────────────────────────────────────────────────────
+# MAIN PIPELINE (Groq -> Gemini -> Regex Cascade)
+# ─────────────────────────────────────────────────────────────────────────────
 import re
-import json
 from google.genai import types
+from .models import run_groq_extraction, run_gemini_extraction
 from .config import FIELD_MODEL_MAP
-from .models import run_smart_sliding_window_extraction, run_gemini_extraction
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# REGEX FALLBACK HELPERS  (ported from PO Extractor v2 — extractorService.js)
-# Used when Gemini returns "not_found" or an empty value for any field.
+# REGEX FALLBACK HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _normalize(text):
@@ -52,18 +52,7 @@ def _parse_amount(text):
     return ""
 
 def _extract_line_items_regex(text):
-    """
-    Scans for lines starting with a number (item rows in PO tables).
-    Returns list matching friend's line_items schema:
-    { description, quantity, unit_price, source_quote }
-    """
     lines = _get_lines(text)
-    month_regex = re.compile(
-        r"(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?"
-        r"|Jul(?:y)?|Aug(?:ust)?|Sep(?:t)?(?:ember)?|Oct(?:ober)?"
-        r"|Nov(?:ember)?|Dec(?:ember))['\s]?(\d{2,4})",
-        re.IGNORECASE
-    )
     item_start = re.compile(r"^\d{1,4}\s+")
     items = []
     for i, line in enumerate(lines):
@@ -71,7 +60,6 @@ def _extract_line_items_regex(text):
             window = " ".join(lines[i: min(i + 4, len(lines))])
             if re.search(r"Price Details|Central GST|State GST|Total Net", window, re.IGNORECASE):
                 continue
-            month_match = month_regex.search(window)
             items.append({
                 "description": window[:200],
                 "quantity": 1,
@@ -82,11 +70,7 @@ def _extract_line_items_regex(text):
 
 
 def _regex_fallback(field, all_text):
-    """
-    Fallback extraction using regex patterns when Gemini returns not_found.
-    Covers all fields in FIELD_MODEL_MAP.
-    Returns a string value (or list for line_items).
-    """
+    """Fallback extraction using regex when AI returns not_found for a field."""
     text  = _normalize(all_text)
     lines = _get_lines(text)
 
@@ -106,11 +90,11 @@ def _regex_fallback(field, all_text):
 
     if field == "vendor_contact_address":
         parts = []
-        person = _first_match(text, [r"Contact Person\s*:\s*([A-Za-z ]+)"])
-        phone  = _first_match(text, [r"Phone\s*No\s*:\s*([0-9]+)", r"Phone\s*:\s*([0-9]+)"])
-        email  = _first_match(text, [r"Email\s*:?\s*([A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,})"])
+        person      = _first_match(text, [r"Contact Person\s*:\s*([A-Za-z ]+)"])
+        phone       = _first_match(text, [r"Phone\s*No\s*:\s*([0-9]+)", r"Phone\s*:\s*([0-9]+)"])
+        email       = _first_match(text, [r"Email\s*:?\s*([A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,})"])
         vendor_code = _first_match(text, [r"Vendor Code\s*:\s*([0-9]+)"])
-        gst    = _first_match(text, [r"GST Reg No\s*:\s*([0-9A-Z]+)"])
+        gst         = _first_match(text, [r"GST Reg No\s*:\s*([0-9A-Z]+)"])
         if person:      parts.append(f"Contact: {person}")
         if phone:       parts.append(f"Phone: {phone}")
         if email:       parts.append(f"Email: {email}")
@@ -135,12 +119,12 @@ def _regex_fallback(field, all_text):
         return result
 
     if field == "conditions_of_agreement":
-        warranty    = " ".join(filter(None, [
+        warranty   = " ".join(filter(None, [
             _find_block_around(lines, "Warranty", 3),
             _find_block_around(lines, "Defect Liability", 3),
             _find_block_around(lines, "DLP", 3)
         ]))
-        completion  = (
+        completion = (
             _section_between(text, r"5\.\s*Date of Completion.*?:?", [r"Refer", r"6\.", r"Data protection"])
             or _find_block_around(lines, "Date of Completion", 4)
         )
@@ -177,136 +161,247 @@ def _regex_fallback(field, all_text):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# MAIN PIPELINE  (original code — untouched except fallback injection)
+# MAIN PIPELINE
 # ─────────────────────────────────────────────────────────────────────────────
 
 def extract_contract_profile_with_combined_pipeline(chunks, filename):
-    print(f"Running fresh AI Extraction for: {filename}...")
+    print(f"🚀 Running Cascade AI Extraction for: {filename}...")
 
     all_text = "\n".join([c['text'] for c in chunks])
 
-    relevant_keywords = ["VENDOR", "PURCHASE ORDER", "ORDER NO", "DATE", "QTY", "PRICE", "TOTAL", "SCOPE", "WARRANTY", "PAYMENT", "TERMS", "SIGNATORY", "LD", "LIQUIDATED DAMAGES", "CONTACT", "PHONE", "EMAIL"]
-    filtered_chunks = [c['text'] for c in chunks if any(kw in c['text'].upper() for kw in relevant_keywords)]
-    combined_context_gemini = "\n--- PAGE SEPARATOR ---\n".join(filtered_chunks) if filtered_chunks else all_text[:8000]
+    relevant_keywords = [
+        "VENDOR", "PURCHASE ORDER", "ORDER NO", "DATE", "QTY", "PRICE", "TOTAL",
+        "SCOPE", "WARRANTY", "PAYMENT", "TERMS", "SIGNATORY", "LD", "LIQUIDATED DAMAGES",
+        "CONTACT", "PHONE", "EMAIL",
+        # Line-item page keywords — so item pages are never silently dropped
+        "DESCRIPTION", "UNIT PRICE", "AMOUNT", "ITEM", "S.NO", "SR.NO", "SL.NO",
+        "RATE", "HSN", "SAC", "PARTICULARS", "SERVICES", "SUPPLY"
+    ]
+    # Send ALL pages when the document is a reasonable size — filtering risks
+    # silently dropping entire line-item pages. Only filter for very large docs.
+    if len(all_text) <= 40000:
+        combined_context = "\n--- PAGE SEPARATOR ---\n".join(c['text'] for c in chunks)
+    else:
+        filtered_chunks = [c['text'] for c in chunks if any(kw in c['text'].upper() for kw in relevant_keywords)]
+        combined_context = "\n--- PAGE SEPARATOR ---\n".join(filtered_chunks) if filtered_chunks else all_text[:20000]
 
-    # --- Local RoBERTa Execution ---
-    local_results = {}
-    if "roberta" in FIELD_MODEL_MAP.values():
-        if FIELD_MODEL_MAP.get("effective_date") == "roberta":
-            local_results["effective_date"] = run_smart_sliding_window_extraction(all_text, "What is the dated or order date?")
-        if FIELD_MODEL_MAP.get("lapse_expiry_date") == "roberta":
-            local_results["lapse_expiry_date"] = run_smart_sliding_window_extraction(all_text, "What is the completion date or duration of the works?")
-        if FIELD_MODEL_MAP.get("total_value") == "roberta":
-            local_results["total_value"] = run_smart_sliding_window_extraction(all_text, "What is the Total Order Value in INR?")
+    ai_results = {}
+    ai_model_used = "None"
+    extraction_success = False
 
-   # --- Cloud Gemini Execution ---
-    gemini_results = {}
-    if "gemini" in FIELD_MODEL_MAP.values():
-        prompt = f"You are an expert procurement AI analyzing a Purchase Order. Extract ALL requested fields. For every field, you MUST also provide the 'source_quote', which is the EXACT, literal snippet of text from the document that proves your answer. If missing, output 'not_found'. \nPO Context:\n{combined_context_gemini}"
+    # ---------------------------------------------------------
+    # 1. ATTEMPT GROQ EXTRACTION (Fast & Reliable)
+    # ---------------------------------------------------------
+    print("  🧠 Attempting Groq (Llama4-Scout)...")
 
-        # Helper function to keep our schema clean
+    groq_schema_instructions = """
+    {
+      "po_number": {"value": "string", "source_quote": "string"},
+      "vendor_name": {"value": "string", "source_quote": "string"},
+      "vendor_contact_address": {"value": "string", "source_quote": "string"},
+      "conditions_of_agreement": {"value": "string", "source_quote": "string"},
+      "conditions_of_payment": {"value": "string", "source_quote": "string"},
+      "effective_date": {"value": "string", "source_quote": "string"},
+      "lapse_expiry_date": {"value": "string", "source_quote": "string"},
+      "total_value": {"value": "string", "source_quote": "string"},
+      "authorising_signatory": {"value": "string", "source_quote": "string"},
+      "line_items": [
+        {
+          "description": "string",
+          "quantity": 1,
+          "unit_price": 0.0,
+          "source_quote": "string"
+        }
+      ]
+    }
+    """
+
+    groq_prompt = f"""You are an expert procurement AI. Extract ALL requested fields from the Purchase Order document below.
+For every field, provide:
+  - "value": the extracted data (full text, not a summary or reference to another document)
+  - "source_quote": the EXACT verbatim snippet from the document proving this value
+
+If a field truly cannot be found, set "value" to "not_found". Never reference other documents or say "as per LPO-XXXX" - extract the ACTUAL content written in this document.
+
+FIELD DEFINITIONS:
+
+po_number: The Purchase Order or Order number (e.g. "Our Order No: 12345").
+
+vendor_name: Name of the VENDOR/SUPPLIER receiving this PO (NOT the buyer).
+
+vendor_contact_address: ONLY the vendor's contact details (name, phone, email, GST, vendor code).
+  EXCLUDE: buyer address, Delhi International Airport, buyer personnel (e.g. Sujit Biswas).
+
+effective_date: The date this PO was issued or becomes effective.
+
+lapse_expiry_date: The date the PO expires or work must be completed.
+
+conditions_of_agreement: Extract the FULL TEXT of ALL agreement conditions written in this document.
+  This MUST include: scope of work, warranty period, Defect Liability Period (DLP), Liquidated Damages (LD)
+  clause, penalty terms, completion timeline, and any other obligations. Copy the actual clauses verbatim,
+  do NOT summarise or reference another document. If the document says "as per LPO-XXXX", still extract
+  whatever additional conditions ARE written here alongside that reference.
+
+conditions_of_payment: Extract the FULL TEXT of all payment terms written in this document.
+  Include: payment schedule, milestone percentages, advance payment, retention money, GST handling.
+  Copy the actual clauses verbatim, do NOT summarise or say "as per" another document.
+
+total_value: The total order or contract value (numeric amount with currency).
+
+authorising_signatory: Name and designation of the person who signed/authorised this PO.
+
+line_items: Extract EVERY SINGLE line item listed in the PO without exception - do not stop early.
+  Each item needs: description (full item name/service), quantity (numeric), unit_price (numeric, use 0
+  if not stated), source_quote (verbatim row text). There may be 10, 15, or more items - extract ALL of them.
+
+You MUST output valid JSON matching this exact structure:
+{groq_schema_instructions}
+
+Document Text:
+{combined_context}
+"""
+
+    success, response_data = run_groq_extraction(groq_prompt)
+    if success:
+        ai_results = response_data
+        ai_model_used = "Groq-Llama4-Scout"
+        extraction_success = True
+        print("  ✅ Groq extraction successful!")
+    else:
+        print(f"  ⚠️ Groq failed ({response_data}). Falling back to Gemini...")
+
+    # ---------------------------------------------------------
+    # 2. ATTEMPT GEMINI EXTRACTION (Fallback)
+    # ---------------------------------------------------------
+    if not extraction_success:
+        print("  🧠 Attempting Gemini-2.5-Flash...")
+
         def get_field_schema(desc):
             return types.Schema(
                 type=types.Type.OBJECT,
                 properties={
                     "value": types.Schema(type=types.Type.STRING, description=desc),
-                    "source_quote": types.Schema(type=types.Type.STRING, description="The EXACT, literal quote from the text.")
+                    "source_quote": types.Schema(type=types.Type.STRING, description="Exact literal quote.")
                 }
             )
 
-        po_schema = types.Schema(
+        gemini_schema = types.Schema(
             type=types.Type.OBJECT,
             properties={
-                "po_number": get_field_schema("The Purchase Order Number or Order No."),
-                "vendor_name": get_field_schema("The Vendor's Name"),
-
-                # 🛑 NEGATIVE CONSTRAINTS ADDED HERE 🛑
-                "vendor_contact_address": get_field_schema(
-                    "CRITICAL: Extract ONLY the VENDOR'S address and contact details. "
-                    "You MUST EXCLUDE all buyer/receiver details. "
-                    "DO NOT extract Delhi International Airport, Sujit Biswas, or @gmrgroup.in emails."
+                "po_number": get_field_schema("PO Number"),
+                "vendor_name": get_field_schema("Vendor Name"),
+                "vendor_contact_address": get_field_schema("VENDOR address only. EXCLUDE buyer details."),
+                "conditions_of_agreement": get_field_schema(
+                    "Extract the FULL TEXT of ALL agreement conditions in this document: scope of work, "
+                    "warranty period, Defect Liability Period (DLP), Liquidated Damages (LD) clause, "
+                    "penalty terms, completion timeline. Copy actual clauses verbatim — do NOT summarise "
+                    "or reference another document like 'as per LPO-XXXX'."
                 ),
-
-                "conditions_of_agreement": get_field_schema("Scope of work, warranty, DLP terms, and LD."),
-                "conditions_of_payment": get_field_schema("Payment terms."),
-                "effective_date": get_field_schema("The start date."),
-                "lapse_expiry_date": get_field_schema("The end date."),
-                "total_value": get_field_schema("Total order value."),
+                "conditions_of_payment": get_field_schema(
+                    "Extract the FULL TEXT of all payment terms in this document: payment schedule, "
+                    "milestone percentages, advance payment, retention money, GST handling. "
+                    "Copy actual clauses verbatim — do NOT summarise."
+                ),
+                "effective_date": get_field_schema("Start date."),
+                "lapse_expiry_date": get_field_schema("End date."),
+                "total_value": get_field_schema("Total value."),
                 "authorising_signatory": get_field_schema("Who signed it?"),
                 "line_items": types.Schema(
                     type=types.Type.ARRAY,
-                    description="List of purchased items or recurring charges.",
                     items=types.Schema(
                         type=types.Type.OBJECT,
                         properties={
                             "description": types.Schema(type=types.Type.STRING),
                             "quantity": types.Schema(type=types.Type.NUMBER),
                             "unit_price": types.Schema(type=types.Type.NUMBER),
-                            "source_quote": types.Schema(type=types.Type.STRING, description="Exact text row.")
+                            "source_quote": types.Schema(type=types.Type.STRING)
                         }
                     )
                 )
-            },
-            required=["po_number", "vendor_name"]
+            }
         )
-        success, response_data = run_gemini_extraction(prompt, po_schema)
+
+        gemini_prompt = (
+            "You are an expert procurement AI. Extract every field from this Purchase Order exactly as written.\n"
+            "Rules:\n"
+            "- Copy conditions and payment terms verbatim — do NOT summarise or say 'as per LPO-XXXX'.\n"
+            "- Extract EVERY line item without exception (there may be 15 or more).\n"
+            "- For vendor_contact_address: vendor details only, exclude buyer/airport/buyer personnel.\n"
+            "- If a field is genuinely absent, output 'not_found'.\n\n"
+            f"Purchase Order:\n{combined_context}"
+        )
+        success, response_data = run_gemini_extraction(gemini_prompt, gemini_schema)
+
         if success:
-            gemini_results = response_data
-            gemini_results["po_number"] = {}
+            ai_results = response_data
+            ai_model_used = "Gemini-2.5-Flash"
+            print("  ✅ Gemini extraction successful!")
         else:
-            print(f"❌ Gemini API Failure: {response_data}")
+            print(f"  ❌ Both AI models failed. Relying entirely on Regex.")
 
-    # --- Compile Final Profile ---
+    # ---------------------------------------------------------
+    # 3. COMPILE PROFILE & APPLY REGEX FALLBACKS
+    # ---------------------------------------------------------
     final_profile = {}
-    for field, preferred_model in FIELD_MODEL_MAP.items():
-        if preferred_model == "gemini":
-            val_obj = gemini_results.get(field, {})
 
-            if field == "line_items":
-                # Handle array of line items
-                if not val_obj or len(val_obj) == 0:
-                    # ── REGEX FALLBACK for line_items ──────────────────────
-                    fallback_items = _regex_fallback("line_items", all_text)
-                    if fallback_items:
-                        print(f"  ↩ Regex fallback used for: {field} ({len(fallback_items)} items found)")
-                        final_profile[field] = {
-                            "status": "found",
-                            "value": fallback_items,
-                            "model_used": "regex_fallback"
-                        }
-                    else:
-                        final_profile[field] = {"status": "not_found", "value": [], "model_used": "gemini"}
+    for field in FIELD_MODEL_MAP.keys():
+        val_obj = ai_results.get(field, {})
+
+        if field == "line_items":
+            if not val_obj or len(val_obj) == 0:
+                fallback_items = _regex_fallback("line_items", all_text)
+                if fallback_items:
+                    print(f"  ↩ Regex fallback used for: line_items ({len(fallback_items)} items found)")
+                    final_profile[field] = {"status": "found", "value": fallback_items, "model_used": "Regex"}
                 else:
-                    final_profile[field] = {"status": "found", "value": val_obj, "model_used": "gemini"}
+                    final_profile[field] = {"status": "not_found", "value": [], "model_used": ai_model_used}
             else:
-                # Handle standard fields
-                gemini_value = val_obj.get("value", "not_found") if isinstance(val_obj, dict) else "not_found"
-                gemini_quote = val_obj.get("source_quote", "Quote missing") if isinstance(val_obj, dict) else "Quote missing"
+                # Sanitise each item: ensure quantity and unit_price are always valid numbers
+                sanitised = []
+                for item in val_obj:
+                    if not isinstance(item, dict):
+                        continue
+                    try:
+                        qty = float(item.get("quantity") or 0)
+                    except (TypeError, ValueError):
+                        qty = 0.0
+                    try:
+                        price = float(item.get("unit_price") or 0)
+                    except (TypeError, ValueError):
+                        price = 0.0
+                    sanitised.append({
+                        "description": str(item.get("description") or "").strip(),
+                        "quantity": qty,
+                        "unit_price": price,
+                        "source_quote": str(item.get("source_quote") or "").strip(),
+                    })
+                print(f"  ✅ line_items: {len(sanitised)} items extracted by AI")
+                final_profile[field] = {"status": "found", "value": sanitised, "model_used": ai_model_used}
 
-                # ── REGEX FALLBACK for standard fields ─────────────────────
-                if not gemini_value or gemini_value in ("not_found", "not found", ""):
-                    fallback_value = _regex_fallback(field, all_text)
-                    if fallback_value:
-                        print(f"  ↩ Regex fallback used for: {field}")
-                        final_profile[field] = {
-                            "value": fallback_value,
-                            "source_quote": "Extracted via regex pattern",
-                            "model_used": "regex_fallback"
-                        }
-                    else:
-                        final_profile[field] = {
-                            "value": "not_found",
-                            "source_quote": "Not found by Gemini or regex",
-                            "model_used": "gemini"
-                        }
+        else:
+            ai_value = val_obj.get("value", "not_found") if isinstance(val_obj, dict) else "not_found"
+            ai_quote = val_obj.get("source_quote", "Quote missing") if isinstance(val_obj, dict) else "Quote missing"
+
+            if not ai_value or str(ai_value).lower() in ("not_found", "not found", "", "null", "none"):
+                fallback_value = _regex_fallback(field, all_text)
+                if fallback_value:
+                    print(f"  ↩ Regex fallback used for: {field}")
+                    final_profile[field] = {
+                        "value": fallback_value,
+                        "source_quote": "Extracted via regex pattern",
+                        "model_used": "Regex"
+                    }
                 else:
                     final_profile[field] = {
-                        "value": gemini_value,
-                        "source_quote": gemini_quote,
-                        "model_used": "Gemini-3.5-Flash"
+                        "value": "not_found",
+                        "source_quote": "Not found by AI or regex",
+                        "model_used": ai_model_used
                     }
+            else:
+                final_profile[field] = {
+                    "value": ai_value,
+                    "source_quote": ai_quote,
+                    "model_used": ai_model_used
+                }
 
-    # ❌ REMOVED save_cache() execution here
-    output_payload = {"status": "success", "profile": final_profile}
-
-    return output_payload
+    return {"status": "success", "profile": final_profile}

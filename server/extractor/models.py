@@ -1,84 +1,68 @@
+# extractor/models.py
 import time
 import json
-import torch
-import torch.nn.functional as F
-from transformers import AutoTokenizer, AutoModelForQuestionAnswering
 from google.genai import Client
 from google.genai import types
-from .config import LOCAL_MODEL_NAME, GEMINI_API_KEY
+from groq import Groq
+from .config import GEMINI_API_KEY, GROQ_API_KEY
 
-print("⏳ Initializing Local CUAD RoBERTa Model...")
-try:
-    local_tokenizer = AutoTokenizer.from_pretrained(LOCAL_MODEL_NAME)
-    local_model = AutoModelForQuestionAnswering.from_pretrained(LOCAL_MODEL_NAME)
-    print("🟢 Local Model Successfully Mounted.")
-except Exception as e:
-    print(f"🔴 Local Model failed to load: {e}")
-    local_model = None
-
-def run_local_extraction(text, query):
-    """Executes a single pass of the extractive QA model over a given text segment."""
-    if not local_model or not text.strip():
-        return {"value": "Not found in contract", "confidence": 0.0}
+def run_groq_extraction(prompt):
+    """Executes extraction using Groq (Llama 4 Scout) with strict JSON mode."""
+    if not GROQ_API_KEY:
+        return False, "GROQ_API_KEY not configured"
         
-    try:
-        inputs = local_tokenizer(query, text, return_tensors="pt", truncation=True, max_length=512)
-        with torch.no_grad():
-            outputs = local_model(**inputs)
-            
-        start_probs = F.softmax(outputs.start_logits, dim=-1)[0]
-        end_probs = F.softmax(outputs.end_logits, dim=-1)[0]
-        
-        start_idx = torch.argmax(start_probs)
-        end_idx = torch.argmax(end_probs)
-        
-        confidence = (start_probs[start_idx] * end_probs[end_idx]).item() * 100
-        
-        # Discard invalid token ranges
-        if start_idx > end_idx or start_idx == 0:
-            return {"value": "Not found in contract", "confidence": 0.0}
-            
-        tokens = inputs.input_ids[0, start_idx : end_idx + 1]
-        val = local_tokenizer.decode(tokens, skip_special_tokens=True).strip()
-        
-        return {"value": val if val else "Not found in contract", "confidence": round(confidence, 1)}
-    except Exception as e:
-        print(f"⚠️ Local Extraction Error: {e}")
-        return {"value": "Not found in contract", "confidence": 0.0}
-
-def run_smart_sliding_window_extraction(full_text, query):
-    """Processes large documents by running the extractive model across overlapping text chunks."""
-    words = full_text.split()
-    CHUNK_SIZE = 350 
-    OVERLAP = 50
-    best_result = {"value": "Not found in contract", "confidence": 0.0}
+    client = Groq(api_key=GROQ_API_KEY)
+    last_error = "Unknown"
     
-    for i in range(0, len(words), max(1, CHUNK_SIZE - OVERLAP)):
-        chunk_text = " ".join(words[i : i + CHUNK_SIZE])
-        current_result = run_local_extraction(chunk_text, query)
-        
-        # Retain the extraction with the highest statistical probability
-        if current_result["confidence"] > best_result["confidence"]:
-            best_result = current_result
+    for attempt in range(3):
+        try:
+            response = client.chat.completions.create(
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a precise data extraction AI. You MUST return ONLY a valid JSON object. Do not include markdown formatting like ```json or any conversational text."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                model="meta-llama/llama-4-scout-17b-16e-instruct", 
+                temperature=0.0,
+                response_format={"type": "json_object"}  # Forces strict JSON
+            )
             
-    return best_result
+            content = response.choices[0].message.content
+            return True, json.loads(content)
+            
+        except Exception as e:
+            last_error = str(e)
+            if any(err in last_error for err in ["429", "503", "rate limit"]):
+                time.sleep(2 * (2 ** attempt))
+            else:
+                break
+                
+    return False, last_error
+
 
 def run_gemini_extraction(prompt, schema):
     """Executes the cloud generative model request with structured JSON enforcement and exponential backoff."""
+    if not GEMINI_API_KEY:
+        return False, "GEMINI_API_KEY not configured"
+        
     client = Client(api_key=GEMINI_API_KEY)
     last_error = "Unknown"
     
     for attempt in range(3):
         try:
             response = client.models.generate_content(
-                model='gemini-3.5-flash',
+                model='gemini-2.5-flash',
                 contents=prompt,
                 config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=schema, temperature=0.1)
             )
             return True, json.loads(response.text)
         except Exception as e:
             last_error = str(e)
-            # Implement exponential backoff for common rate-limit and server-side errors
             if any(err in last_error for err in ["429", "ResourceExhausted", "503", "UNAVAILABLE"]):
                 time.sleep(2 * (2 ** attempt))
             else:

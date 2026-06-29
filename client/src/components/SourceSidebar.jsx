@@ -24,7 +24,10 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
       prevLabelRef.current = activeSource.label;
     }
 
-    const encodedQuote = encodeURIComponent(activeSource.quote);
+    // 🛠️ THE FIX: Only send the first 100 characters in the URL to prevent HTTP 414!
+    const shortQuote = activeSource.quote.substring(0, 100);
+    const encodedQuote = encodeURIComponent(shortQuote);
+    
     fetch(`http://localhost:8000/api/pos/${dbId}/find-page?quote=${encodedQuote}`)
       .then(res => res.json())
       .then(data => { if (data.page) setPageNumber(data.page); })
@@ -33,8 +36,6 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
 
   // ── Highlight fix: slide a window of N words across the ENTIRE quote
   // so we can match any sub-phrase, not just the beginning.
-  // react-pdf gives us one small text span at a time — often just a line —
-  // so we try windows of decreasing length until we find a match.
   const textRenderer = useCallback(
     (textItem) => {
       const quote = activeSource?.quote;
@@ -105,7 +106,7 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
         </button>
       </div>
 
-      {/* ── Quote panel: scrollable, capped at 35% of sidebar height ── */}
+      {/* ── Quote panel: scrollable, capped at 32% of sidebar height ── */}
       <div style={{
         flexShrink: 0,
         maxHeight: '32%',
@@ -166,6 +167,7 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
             scale={scale}
             renderTextLayer={true}
             renderAnnotationLayer={false}
+            renderMode="canvas" // 🛠️ Crucial for rendering stability on long PDFs
             customTextRenderer={textRenderer}
             className="shadow-2xl shadow-black ring-1 ring-white/10"
           />
