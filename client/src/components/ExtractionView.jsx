@@ -139,7 +139,7 @@ const Card = ({ title, icon, children }) => (
   </section>
 );
 
-const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFileSelection, handleAnalyze, setActiveSource, dbId, onUpdate }) => (
+const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFileSelection, handleAnalyze, setActiveSource, dbId, onUpdate, customFields = [] }) => (
   <div className="animate-in fade-in duration-500">
     {!result ? (
       <div
@@ -194,6 +194,24 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
         <Card title="Signatures" icon={<Edit3 size={13} />}>
           <ProfileRow icon={<Edit3 size={14} />}       label="Signatory"         fieldKey="authorising_signatory"   data={result.authorising_signatory}   dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
         </Card>
+
+        {/* ── Dynamic Custom Fields ── */}
+        {customFields && customFields.length > 0 && (
+          <Card title="Custom Fields" icon={<Sparkles size={13} />}>
+            {customFields.map(cf => (
+              <ProfileRow
+                key={cf.key}
+                icon={<Sparkles size={14} />}
+                label={cf.name}
+                fieldKey={cf.key}
+                data={result[cf.key]}
+                dbId={dbId}
+                onUpdate={onUpdate}
+                setActiveSource={setActiveSource}
+              />
+            ))}
+          </Card>
+        )}
 
         <Card title="Line Items" icon={<List size={13} />}>
           <div className="p-5">

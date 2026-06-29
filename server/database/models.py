@@ -25,8 +25,11 @@ class PurchaseOrderRecord(Base):
     line_items = Column(JSON)
     source_quotes = Column(JSON)
     
-    # 🆕 Audit Trail for manual overrides
+    # Audit Trail for manual overrides
     edit_history = Column(JSON, default=list)
+    
+    # 🆕 Dynamic custom fields — keyed by field.key → {value, source_quote}
+    custom_fields = Column(JSON, default=dict)
 
     status = Column(String, default="Pending Review") 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

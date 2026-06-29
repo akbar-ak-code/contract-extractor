@@ -207,10 +207,22 @@ async def update_po_field(po_id: int, payload: dict, db: Session = Depends(get_d
     field = payload.get("field")
     new_value = payload.get("value")
 
-    # Get the old value before overwriting
-    old_value = getattr(record, field, None)
+    # Determine if this is a built-in column or a custom JSON field
+    BUILT_IN_COLS = {"po_number","vendor_name","vendor_contact_address","effective_date",
+                     "lapse_expiry_date","total_value","conditions_of_agreement",
+                     "conditions_of_payment","authorising_signatory"}
 
-    # Prepare the history log
+    if field in BUILT_IN_COLS:
+        old_value = getattr(record, field, None)
+        setattr(record, field, new_value)
+    else:
+        # Custom field — stored in the custom_fields JSON column
+        custom = record.custom_fields or {}
+        old_value = custom.get(field, {}).get("value", None) if isinstance(custom.get(field), dict) else custom.get(field)
+        custom[field] = {**(custom.get(field) or {}), "value": new_value}
+        record.custom_fields = custom
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(record, "custom_fields")
     history_log = record.edit_history or []
     history_log.append({
         "field": field,
@@ -256,7 +268,22 @@ async def get_po_details(po_id: int, db: Session = Depends(get_db)):
         "line_items": {"status": "found" if record.line_items else "not_found", "value": record.line_items}
     }
     
+    # Attach any custom fields stored on this record
+    custom_schema = _load_schema()
+    custom_data = record.custom_fields or {}
+    for cf in custom_schema:
+        k = cf["key"]
+        entry = custom_data.get(k, {})
+        cached_profile[k] = {
+            "value": entry.get("value", "not_found"),
+            "source_quote": entry.get("source_quote", ""),
+            "history": get_hist(k),
+            "_custom": True,   # flag so frontend knows it's custom
+            "_meta": cf,       # pass name/description through
+        }
+
     return {"filename": record.filename, "db_id": record.id, "extraction_result": {"status": "success", "profile": cached_profile}}
+
 @app.get("/api/pos/{po_id}/pdf")
 async def get_po_pdf(po_id: int, db: Session = Depends(get_db)):
     """Serves the physical PDF file for the in-app viewer."""
@@ -297,3 +324,192 @@ async def find_quote_page(po_id: int, quote: str, db: Session = Depends(get_db))
         print(f"⚠️ find-page error: {e}")
 
     return {"page": 1}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  DYNAMIC SCHEMA — Custom Field Management
+# ═══════════════════════════════════════════════════════════════════════════
+
+from pydantic import BaseModel
+from typing import Optional
+
+class CustomFieldCreate(BaseModel):
+    name: str          # human-readable label, e.g. "Warranty Period"
+    key: str           # snake_case identifier, e.g. "warranty_period"
+    description: str   # prompt / hint for Gemini
+    example: Optional[str] = ""  # optional example string
+
+class CustomFieldUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    example: Optional[str] = None
+    rerun: Optional[bool] = False   # if True, re-extract across all POs
+
+# ── In-memory + file persistence for custom fields ───────────────────────
+# We use a simple JSON file so no schema migration is needed on the DB.
+SCHEMA_FILE = "data/custom_fields.json"
+os.makedirs("data", exist_ok=True)
+
+def _load_schema() -> list:
+    if os.path.exists(SCHEMA_FILE):
+        try:
+            with open(SCHEMA_FILE) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return []
+
+def _save_schema(fields: list):
+    with open(SCHEMA_FILE, "w") as f:
+        json.dump(fields, f, indent=2)
+
+import json
+
+# ── Helper: extract a single custom field from text via Gemini ────────────
+def _gemini_extract_custom(all_text: str, field: dict) -> dict:
+    """Ask Gemini to extract one custom field; returns {value, source_quote}."""
+    from extractor.models import run_gemini_extraction
+    from google.genai import types
+
+    prompt = (
+        f"You are an expert procurement AI. Extract the following field from this Purchase Order.\n"
+        f"Field: {field['name']}\n"
+        f"Description: {field['description']}\n"
+        + (f"Example of what it looks like: {field['example']}\n" if field.get('example') else "")
+        + f"If the field is not present, output 'not_found'.\n"
+        f"Also provide the exact literal source_quote from the document.\n\n"
+        f"Document Text:\n{all_text[:12000]}"
+    )
+    schema = types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "value": types.Schema(type=types.Type.STRING),
+            "source_quote": types.Schema(type=types.Type.STRING),
+        }
+    )
+    success, data = run_gemini_extraction(prompt, schema)
+    if success and isinstance(data, dict):
+        return {"value": data.get("value", "not_found"), "source_quote": data.get("source_quote", "")}
+    return {"value": "not_found", "source_quote": ""}
+
+
+@app.get("/api/schema")
+def get_schema():
+    """Return all custom fields."""
+    return _load_schema()
+
+
+@app.post("/api/schema")
+async def create_custom_field(payload: CustomFieldCreate, db: Session = Depends(get_db)):
+    """
+    Add a new custom field and immediately back-fill it for all existing POs.
+    """
+    fields = _load_schema()
+
+    # Guard: key must be unique and not shadow a built-in
+    BUILT_IN_KEYS = {"po_number","vendor_name","vendor_contact_address","effective_date",
+                     "lapse_expiry_date","total_value","conditions_of_agreement",
+                     "conditions_of_payment","authorising_signatory","line_items"}
+    if payload.key in BUILT_IN_KEYS:
+        raise HTTPException(status_code=400, detail="Cannot shadow a built-in field key.")
+    if any(f["key"] == payload.key for f in fields):
+        raise HTTPException(status_code=409, detail="A custom field with that key already exists.")
+
+    new_field = {
+        "key": payload.key,
+        "name": payload.name,
+        "description": payload.description,
+        "example": payload.example or "",
+        "created_at": datetime.utcnow().isoformat(),
+    }
+    fields.append(new_field)
+    _save_schema(fields)
+
+    # Back-fill: extract this field for every PO that has a stored PDF
+    records = db.query(PurchaseOrderRecord).all()
+    updated = 0
+    for record in records:
+        if not record.pdf_file_path or not os.path.exists(record.pdf_file_path):
+            continue
+        try:
+            from extractor.ingestion import extract_and_chunk_pdf
+            chunks = extract_and_chunk_pdf(record.pdf_file_path)
+            all_text = "\n".join(c["text"] for c in chunks)
+            extracted = _gemini_extract_custom(all_text, new_field)
+
+            custom = record.custom_fields or {}
+            custom[payload.key] = extracted
+            record.custom_fields = custom
+            # trigger SQLAlchemy change detection on JSON column
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(record, "custom_fields")
+            updated += 1
+        except Exception as e:
+            print(f"⚠️ Back-fill failed for PO {record.id}: {e}")
+
+    db.commit()
+    return {"status": "created", "field": new_field, "backfilled": updated}
+
+
+@app.patch("/api/schema/{field_key}")
+async def update_custom_field(field_key: str, payload: CustomFieldUpdate, db: Session = Depends(get_db)):
+    """
+    Edit a custom field's name/description/example.
+    If payload.rerun is True, re-extract from all POs.
+    """
+    fields = _load_schema()
+    idx = next((i for i, f in enumerate(fields) if f["key"] == field_key), None)
+    if idx is None:
+        raise HTTPException(status_code=404, detail="Custom field not found.")
+
+    if payload.name:        fields[idx]["name"] = payload.name
+    if payload.description: fields[idx]["description"] = payload.description
+    if payload.example is not None: fields[idx]["example"] = payload.example
+    _save_schema(fields)
+
+    rerun_count = 0
+    if payload.rerun:
+        records = db.query(PurchaseOrderRecord).all()
+        for record in records:
+            if not record.pdf_file_path or not os.path.exists(record.pdf_file_path):
+                continue
+            try:
+                from extractor.ingestion import extract_and_chunk_pdf
+                chunks = extract_and_chunk_pdf(record.pdf_file_path)
+                all_text = "\n".join(c["text"] for c in chunks)
+                extracted = _gemini_extract_custom(all_text, fields[idx])
+                custom = record.custom_fields or {}
+                custom[field_key] = extracted
+                record.custom_fields = custom
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(record, "custom_fields")
+                rerun_count += 1
+            except Exception as e:
+                print(f"⚠️ Re-extract failed for PO {record.id}: {e}")
+        db.commit()
+
+    return {"status": "updated", "field": fields[idx], "rerun_count": rerun_count}
+
+
+@app.delete("/api/schema/{field_key}")
+async def delete_custom_field(field_key: str, db: Session = Depends(get_db)):
+    """Delete a custom field and scrub it from all PO records."""
+    fields = _load_schema()
+    before = len(fields)
+    fields = [f for f in fields if f["key"] != field_key]
+    if len(fields) == before:
+        raise HTTPException(status_code=404, detail="Custom field not found.")
+    _save_schema(fields)
+
+    # Remove from every PO's custom_fields JSON
+    records = db.query(PurchaseOrderRecord).all()
+    for record in records:
+        custom = record.custom_fields or {}
+        if field_key in custom:
+            custom.pop(field_key)
+            record.custom_fields = custom
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(record, "custom_fields")
+    db.commit()
+
+    return {"status": "deleted", "key": field_key}

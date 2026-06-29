@@ -1,12 +1,13 @@
 // src/App.jsx
 import React, { useState, useRef, useEffect } from 'react';
-import { Calendar as CalendarIcon, FileText, LayoutList } from 'lucide-react';
+import { Calendar as CalendarIcon, FileText, LayoutList, Settings2 } from 'lucide-react';
 
 import Sidebar from './components/Sidebar';
 import CalendarView from './components/CalendarView';
 import ExtractionView from './components/ExtractionView';
 import SourceSidebar from './components/SourceSidebar';
 import AllPOsView from './components/AllPOsView';
+import SchemaManager from './components/SchemaManager';
 
 const App = () => {
   const [dbId, setDbId] = useState(null);
@@ -16,20 +17,26 @@ const App = () => {
   const [error, setError] = useState(null);
 
   const [history, setHistory] = useState([]);
+  const [customFields, setCustomFields] = useState([]);
   const [activeSource, setActiveSource] = useState(null);
   const [activeTab, setActiveTab] = useState('calendar');
 
   const fileInputRef = useRef(null);
 
-  useEffect(() => { fetchHistory(); }, []);
+  useEffect(() => { fetchHistory(); fetchCustomFields(); }, []);
 
   const fetchHistory = async () => {
     try {
       const res = await fetch('http://localhost:8000/api/pos');
       if (res.ok) setHistory(await res.json());
-    } catch (err) {
-      console.error("Failed to load history", err);
-    }
+    } catch (err) { console.error("Failed to load history", err); }
+  };
+
+  const fetchCustomFields = async () => {
+    try {
+      const res = await fetch('http://localhost:8000/api/schema');
+      if (res.ok) setCustomFields(await res.json());
+    } catch (err) { console.error("Failed to load schema", err); }
   };
 
   const loadPastPO = async (id) => {
@@ -138,6 +145,7 @@ const App = () => {
     { id: 'calendar',   label: 'Deadlines',  Icon: CalendarIcon },
     { id: 'all',        label: 'All POs',    Icon: LayoutList   },
     { id: 'extraction', label: 'Extraction', Icon: FileText     },
+    { id: 'schema',     label: 'Schema',     Icon: Settings2    },
   ];
 
   const tabBtn = (active) => ({
@@ -213,6 +221,11 @@ const App = () => {
               onDeletePO={handleDeletePO}
             />
           )}
+          {activeTab === 'schema' && (
+            <SchemaManager
+              poCount={history.length}
+            />
+          )}
           {activeTab === 'extraction' && (
             <ExtractionView
               file={file}
@@ -225,6 +238,7 @@ const App = () => {
               setActiveSource={setActiveSource}
               dbId={dbId}
               onUpdate={handleFieldUpdate}
+              customFields={customFields}
             />
           )}
         </div>
