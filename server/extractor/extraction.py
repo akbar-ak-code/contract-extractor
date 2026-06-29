@@ -1,5 +1,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# MAIN PIPELINE (Groq -> Gemini -> Regex Cascade)
+# MAIN PIPELINE  (Gemini → Groq → Regex Cascade)
+# Pipeline order: 1. Gemini 2.5 Flash  2. Groq Llama-4 Scout  3. Regex
+# After core extraction a SECOND Gemini pass runs the deep contract-analysis
+# prompt to produce deadlines / anomalies / raw_fields (dynamic fields).
 # ─────────────────────────────────────────────────────────────────────────────
 import re
 from google.genai import types
@@ -161,6 +164,187 @@ def _regex_fallback(field, all_text):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# DEEP ANALYSIS PROMPT (Second Gemini Pass)
+# Returns deadlines, anomalies, raw_fields, metadata for dynamic storage
+# ─────────────────────────────────────────────────────────────────────────────
+
+DEEP_ANALYSIS_PROMPT = """You are a contract analyst extracting structured information from a Purchase Order (PO) document.
+
+Follow these steps in order. Do not skip steps.
+
+---
+
+STEP 1 — QUOTE ALL RELEVANT CLAUSES
+
+Before doing any analysis, scan every page and quote verbatim every clause, sentence, or annotation that relates to any of the following:
+- Dates (PO date, amendment date, any calendar date)
+- Deadlines or timeframes ("within X days", "X months from", "X weeks from")
+- Payment terms, milestones, or triggers ("30% upon", "70% after", "monthly on completion")
+- Warranty, DLP, guarantee period
+- Performance Bank Guarantee (PBG) / security deposit
+- Renewal, termination, or expiry
+- Completion, go-live, implementation, acceptance, handover
+- Any handwritten annotations visible on the page
+
+---
+
+STEP 2 — EXTRACT METADATA
+
+From the quoted clauses and headers, extract:
+- PO number, PO date, Amendment number/date if any
+- Vendor name, Client name, Project description
+- Governing law / jurisdiction
+- Total contract value
+
+---
+
+STEP 3 — IDENTIFY ALL DEADLINES AND PAYMENT OBLIGATIONS
+
+From the clauses quoted in Step 1 only, list every deadline and payment obligation. For each one:
+- Assign a label
+- State what triggers or anchors it
+- Classify the anchor as FIXED, RELATIVE_KNOWN, or RELATIVE_ANCHOR
+
+---
+
+STEP 4 — COMPUTE OR CHAIN EACH DEADLINE
+
+For FIXED or RELATIVE_KNOWN: show reasoning step by step with source citations and compute the calendar date.
+For RELATIVE_ANCHOR: show chain, mark ANCHOR_REQUIRED, do not guess dates.
+
+---
+
+STEP 5 — FLAG ANOMALIES
+
+Note: blank clause headings, conflicting clauses, handwritten annotations modifying printed text,
+information in unexpected clauses, redacted values affecting calculations, amendments with blank reason fields.
+
+---
+
+STEP 6 — OUTPUT JSON
+
+Output ONLY valid JSON with no markdown formatting:
+
+{
+  "metadata": {
+    "po_number": "",
+    "po_date": "",
+    "amendment_number": null,
+    "amendment_date": null,
+    "vendor": "",
+    "client": "",
+    "project_description": "",
+    "governing_law": "",
+    "contract_value_inr": null,
+    "contract_value_note": ""
+  },
+  "raw_fields": {},
+  "deadlines": [
+    {
+      "label": "",
+      "anchor_type": "FIXED",
+      "anchor_description": "",
+      "computed_date": null,
+      "confidence": "HIGH",
+      "reasoning_chain": [
+        {"step": 1, "description": "", "source_clause": "", "source_page": 0}
+      ],
+      "anchor_required": null,
+      "status": "active"
+    }
+  ],
+  "anomalies": [
+    {"type": "", "description": "", "page": 0}
+  ]
+}
+
+RULES:
+- Never invent a date. If you cannot compute it, set computed_date to null and set anchor_required.
+- Every reasoning step must cite a specific clause. If no citation, flag as UNCITED.
+- Boilerplate sections (Supplier Code of Conduct, GST compliance, Labour Law) contain no deadlines. Skip them.
+- If a clause is blank or says "NA", note it as an anomaly. Do not infer content.
+- Handwritten annotations are valid contract content. Extract and cite them.
+
+Document Text:
+{combined_context}
+"""
+
+
+def _run_deep_analysis(combined_context: str) -> dict:
+    """
+    Second Gemini pass: deep contract analysis returning deadlines, anomalies, raw_fields.
+    Returns an empty dict on failure so the main extraction is never blocked.
+    """
+    print("  🔍 Running deep contract analysis (Gemini)...")
+
+    prompt = DEEP_ANALYSIS_PROMPT.replace("{combined_context}", combined_context[:35000])
+
+    # Gemini schema for deep analysis
+    reasoning_step_schema = types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "step":          types.Schema(type=types.Type.INTEGER),
+            "description":   types.Schema(type=types.Type.STRING),
+            "source_clause": types.Schema(type=types.Type.STRING),
+            "source_page":   types.Schema(type=types.Type.INTEGER),
+        }
+    )
+    deadline_schema = types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "label":            types.Schema(type=types.Type.STRING),
+            "anchor_type":      types.Schema(type=types.Type.STRING),
+            "anchor_description": types.Schema(type=types.Type.STRING),
+            "computed_date":    types.Schema(type=types.Type.STRING),
+            "confidence":       types.Schema(type=types.Type.STRING),
+            "reasoning_chain":  types.Schema(type=types.Type.ARRAY, items=reasoning_step_schema),
+            "anchor_required":  types.Schema(type=types.Type.STRING),
+            "status":           types.Schema(type=types.Type.STRING),
+        }
+    )
+    anomaly_schema = types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "type":        types.Schema(type=types.Type.STRING),
+            "description": types.Schema(type=types.Type.STRING),
+            "page":        types.Schema(type=types.Type.INTEGER),
+        }
+    )
+    metadata_schema = types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "po_number":           types.Schema(type=types.Type.STRING),
+            "po_date":             types.Schema(type=types.Type.STRING),
+            "amendment_number":    types.Schema(type=types.Type.STRING),
+            "amendment_date":      types.Schema(type=types.Type.STRING),
+            "vendor":              types.Schema(type=types.Type.STRING),
+            "client":              types.Schema(type=types.Type.STRING),
+            "project_description": types.Schema(type=types.Type.STRING),
+            "governing_law":       types.Schema(type=types.Type.STRING),
+            "contract_value_inr":  types.Schema(type=types.Type.STRING),
+            "contract_value_note": types.Schema(type=types.Type.STRING),
+        }
+    )
+    deep_schema = types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "metadata":   metadata_schema,
+            "raw_fields": types.Schema(type=types.Type.OBJECT, properties={}),
+            "deadlines":  types.Schema(type=types.Type.ARRAY, items=deadline_schema),
+            "anomalies":  types.Schema(type=types.Type.ARRAY, items=anomaly_schema),
+        }
+    )
+
+    success, data = run_gemini_extraction(prompt, deep_schema)
+    if success and isinstance(data, dict):
+        print(f"  ✅ Deep analysis complete: {len(data.get('deadlines', []))} deadlines, {len(data.get('anomalies', []))} anomalies")
+        return data
+    else:
+        print(f"  ⚠️ Deep analysis failed: {data}")
+        return {}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # MAIN PIPELINE
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -173,12 +357,9 @@ def extract_contract_profile_with_combined_pipeline(chunks, filename):
         "VENDOR", "PURCHASE ORDER", "ORDER NO", "DATE", "QTY", "PRICE", "TOTAL",
         "SCOPE", "WARRANTY", "PAYMENT", "TERMS", "SIGNATORY", "LD", "LIQUIDATED DAMAGES",
         "CONTACT", "PHONE", "EMAIL",
-        # Line-item page keywords — so item pages are never silently dropped
         "DESCRIPTION", "UNIT PRICE", "AMOUNT", "ITEM", "S.NO", "SR.NO", "SL.NO",
         "RATE", "HSN", "SAC", "PARTICULARS", "SERVICES", "SUPPLY"
     ]
-    # Send ALL pages when the document is a reasonable size — filtering risks
-    # silently dropping entire line-item pages. Only filter for very large docs.
     if len(all_text) <= 40000:
         combined_context = "\n--- PAGE SEPARATOR ---\n".join(c['text'] for c in chunks)
     else:
@@ -189,12 +370,79 @@ def extract_contract_profile_with_combined_pipeline(chunks, filename):
     ai_model_used = "None"
     extraction_success = False
 
-    # ---------------------------------------------------------
-    # 1. ATTEMPT GROQ EXTRACTION (Fast & Reliable)
-    # ---------------------------------------------------------
-    print("  🧠 Attempting Groq (Llama4-Scout)...")
+    # =========================================================
+    # 1. ATTEMPT GEMINI EXTRACTION (Primary — highest priority)
+    # =========================================================
+    print("  🧠 Attempting Gemini-2.5-Flash (primary)...")
 
-    groq_schema_instructions = """
+    def get_field_schema(desc):
+        return types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "value": types.Schema(type=types.Type.STRING, description=desc),
+                "source_quote": types.Schema(type=types.Type.STRING, description="Exact literal quote.")
+            }
+        )
+
+    gemini_schema = types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "po_number":               get_field_schema("PO Number"),
+            "vendor_name":             get_field_schema("Vendor Name"),
+            "vendor_contact_address":  get_field_schema("VENDOR address only. EXCLUDE buyer details."),
+            "conditions_of_agreement": get_field_schema(
+                "Extract a CONCISE SUMMARY of the key agreement conditions: scope of work, warranty, DLP, LD, "
+                "and completion timeline. Format as short, punchy bullet points. Max 100 words. DO NOT copy full boilerplate paragraphs."
+            ),
+            "conditions_of_payment": get_field_schema(
+                "Extract a CONCISE SUMMARY of the payment terms: payment schedule, milestones, advance, and retention. "
+                "Format as short, punchy bullet points. Max 100 words. DO NOT copy full boilerplate paragraphs."
+            ),
+            "effective_date":       get_field_schema("Start / issuance date of this PO."),
+            "lapse_expiry_date":    get_field_schema("Expiry / completion deadline date."),
+            "total_value":          get_field_schema("Total order or contract value with currency."),
+            "authorising_signatory": get_field_schema("Name and designation of the signing authority."),
+            "line_items": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.OBJECT,
+                    properties={
+                        "description":  types.Schema(type=types.Type.STRING),
+                        "quantity":     types.Schema(type=types.Type.NUMBER),
+                        "unit_price":   types.Schema(type=types.Type.NUMBER),
+                        "source_quote": types.Schema(type=types.Type.STRING)
+                    }
+                )
+            )
+        }
+    )
+
+    gemini_prompt = (
+        "You are an expert procurement AI. Extract every field from this Purchase Order exactly as written.\n"
+        "Rules:\n"
+        "- Copy conditions and payment terms verbatim — do NOT summarise or say 'as per LPO-XXXX'.\n"
+        "- Extract EVERY line item without exception (there may be 15 or more).\n"
+        "- For vendor_contact_address: vendor details only, exclude buyer/airport/buyer personnel.\n"
+        "- If a field is genuinely absent, output 'not_found'.\n\n"
+        f"Purchase Order:\n{combined_context}"
+    )
+
+    success, response_data = run_gemini_extraction(gemini_prompt, gemini_schema)
+    if success:
+        ai_results = response_data
+        ai_model_used = "Gemini-2.5-Flash"
+        extraction_success = True
+        print("  ✅ Gemini extraction successful!")
+    else:
+        print(f"  ⚠️ Gemini failed ({response_data}). Falling back to Groq...")
+
+    # =========================================================
+    # 2. ATTEMPT GROQ EXTRACTION (Fallback)
+    # =========================================================
+    if not extraction_success:
+        print("  🧠 Attempting Groq (Llama4-Scout) as fallback...")
+
+        groq_schema_instructions = """
     {
       "po_number": {"value": "string", "source_quote": "string"},
       "vendor_name": {"value": "string", "source_quote": "string"},
@@ -206,17 +454,12 @@ def extract_contract_profile_with_combined_pipeline(chunks, filename):
       "total_value": {"value": "string", "source_quote": "string"},
       "authorising_signatory": {"value": "string", "source_quote": "string"},
       "line_items": [
-        {
-          "description": "string",
-          "quantity": 1,
-          "unit_price": 0.0,
-          "source_quote": "string"
-        }
+        {"description": "string", "quantity": 1, "unit_price": 0.0, "source_quote": "string"}
       ]
     }
     """
 
-    groq_prompt = f"""You are an expert procurement AI. Extract ALL requested fields from the Purchase Order document below.
+        groq_prompt = f"""You are an expert procurement AI. Extract ALL requested fields from the Purchase Order document below.
 For every field, provide:
   - "value": the extracted data (full text, not a summary or reference to another document)
   - "source_quote": the EXACT verbatim snippet from the document proving this value
@@ -226,33 +469,19 @@ If a field truly cannot be found, set "value" to "not_found". Never reference ot
 FIELD DEFINITIONS:
 
 po_number: The Purchase Order or Order number (e.g. "Our Order No: 12345").
-
 vendor_name: Name of the VENDOR/SUPPLIER receiving this PO (NOT the buyer).
-
 vendor_contact_address: ONLY the vendor's contact details (name, phone, email, GST, vendor code).
-  EXCLUDE: buyer address, Delhi International Airport, buyer personnel (e.g. Sujit Biswas).
-
+  EXCLUDE: buyer address, Delhi International Airport, buyer personnel.
 effective_date: The date this PO was issued or becomes effective.
-
 lapse_expiry_date: The date the PO expires or work must be completed.
 
-conditions_of_agreement: Extract the FULL TEXT of ALL agreement conditions written in this document.
-  This MUST include: scope of work, warranty period, Defect Liability Period (DLP), Liquidated Damages (LD)
-  clause, penalty terms, completion timeline, and any other obligations. Copy the actual clauses verbatim,
-  do NOT summarise or reference another document. If the document says "as per LPO-XXXX", still extract
-  whatever additional conditions ARE written here alongside that reference.
-
-conditions_of_payment: Extract the FULL TEXT of all payment terms written in this document.
-  Include: payment schedule, milestone percentages, advance payment, retention money, GST handling.
-  Copy the actual clauses verbatim, do NOT summarise or say "as per" another document.
-
-total_value: The total order or contract value (numeric amount with currency).
-
+conditions_of_agreement: Provide a CONCISE SUMMARY of key terms like warranty, DLP, LD, and timelines. Use short bullet points. Do NOT copy the massive boilerplate text.
+ This MUST include: scope of work, warranty period, DLP, LD clause, penalty terms, completion timeline.
+conditions_of_payment: Provide a CONCISE SUMMARY of the payment schedule and milestones. Use short bullet points. Do NOT copy massive paragraphs.
+Include: payment schedule, milestone percentages, advance payment, retention money
+total_value: The total order or contract value.
 authorising_signatory: Name and designation of the person who signed/authorised this PO.
-
-line_items: Extract EVERY SINGLE line item listed in the PO without exception - do not stop early.
-  Each item needs: description (full item name/service), quantity (numeric), unit_price (numeric, use 0
-  if not stated), source_quote (verbatim row text). There may be 10, 15, or more items - extract ALL of them.
+line_items: Extract EVERY SINGLE line item. Each needs: description, quantity, unit_price, source_quote.
 
 You MUST output valid JSON matching this exact structure:
 {groq_schema_instructions}
@@ -261,87 +490,18 @@ Document Text:
 {combined_context}
 """
 
-    success, response_data = run_groq_extraction(groq_prompt)
-    if success:
-        ai_results = response_data
-        ai_model_used = "Groq-Llama4-Scout"
-        extraction_success = True
-        print("  ✅ Groq extraction successful!")
-    else:
-        print(f"  ⚠️ Groq failed ({response_data}). Falling back to Gemini...")
-
-    # ---------------------------------------------------------
-    # 2. ATTEMPT GEMINI EXTRACTION (Fallback)
-    # ---------------------------------------------------------
-    if not extraction_success:
-        print("  🧠 Attempting Gemini-2.5-Flash...")
-
-        def get_field_schema(desc):
-            return types.Schema(
-                type=types.Type.OBJECT,
-                properties={
-                    "value": types.Schema(type=types.Type.STRING, description=desc),
-                    "source_quote": types.Schema(type=types.Type.STRING, description="Exact literal quote.")
-                }
-            )
-
-        gemini_schema = types.Schema(
-            type=types.Type.OBJECT,
-            properties={
-                "po_number": get_field_schema("PO Number"),
-                "vendor_name": get_field_schema("Vendor Name"),
-                "vendor_contact_address": get_field_schema("VENDOR address only. EXCLUDE buyer details."),
-                "conditions_of_agreement": get_field_schema(
-                    "Extract the FULL TEXT of ALL agreement conditions in this document: scope of work, "
-                    "warranty period, Defect Liability Period (DLP), Liquidated Damages (LD) clause, "
-                    "penalty terms, completion timeline. Copy actual clauses verbatim — do NOT summarise "
-                    "or reference another document like 'as per LPO-XXXX'."
-                ),
-                "conditions_of_payment": get_field_schema(
-                    "Extract the FULL TEXT of all payment terms in this document: payment schedule, "
-                    "milestone percentages, advance payment, retention money, GST handling. "
-                    "Copy actual clauses verbatim — do NOT summarise."
-                ),
-                "effective_date": get_field_schema("Start date."),
-                "lapse_expiry_date": get_field_schema("End date."),
-                "total_value": get_field_schema("Total value."),
-                "authorising_signatory": get_field_schema("Who signed it?"),
-                "line_items": types.Schema(
-                    type=types.Type.ARRAY,
-                    items=types.Schema(
-                        type=types.Type.OBJECT,
-                        properties={
-                            "description": types.Schema(type=types.Type.STRING),
-                            "quantity": types.Schema(type=types.Type.NUMBER),
-                            "unit_price": types.Schema(type=types.Type.NUMBER),
-                            "source_quote": types.Schema(type=types.Type.STRING)
-                        }
-                    )
-                )
-            }
-        )
-
-        gemini_prompt = (
-            "You are an expert procurement AI. Extract every field from this Purchase Order exactly as written.\n"
-            "Rules:\n"
-            "- Copy conditions and payment terms verbatim — do NOT summarise or say 'as per LPO-XXXX'.\n"
-            "- Extract EVERY line item without exception (there may be 15 or more).\n"
-            "- For vendor_contact_address: vendor details only, exclude buyer/airport/buyer personnel.\n"
-            "- If a field is genuinely absent, output 'not_found'.\n\n"
-            f"Purchase Order:\n{combined_context}"
-        )
-        success, response_data = run_gemini_extraction(gemini_prompt, gemini_schema)
-
+        success, response_data = run_groq_extraction(groq_prompt)
         if success:
             ai_results = response_data
-            ai_model_used = "Gemini-2.5-Flash"
-            print("  ✅ Gemini extraction successful!")
+            ai_model_used = "Groq-Llama4-Scout"
+            extraction_success = True
+            print("  ✅ Groq extraction successful!")
         else:
             print(f"  ❌ Both AI models failed. Relying entirely on Regex.")
 
-    # ---------------------------------------------------------
+    # =========================================================
     # 3. COMPILE PROFILE & APPLY REGEX FALLBACKS
-    # ---------------------------------------------------------
+    # =========================================================
     final_profile = {}
 
     for field in FIELD_MODEL_MAP.keys():
@@ -356,7 +516,6 @@ Document Text:
                 else:
                     final_profile[field] = {"status": "not_found", "value": [], "model_used": ai_model_used}
             else:
-                # Sanitise each item: ensure quantity and unit_price are always valid numbers
                 sanitised = []
                 for item in val_obj:
                     if not isinstance(item, dict):
@@ -404,4 +563,13 @@ Document Text:
                     "model_used": ai_model_used
                 }
 
-    return {"status": "success", "profile": final_profile}
+    # =========================================================
+    # 4. SECOND PASS — Deep Contract Analysis (Gemini only)
+    # =========================================================
+    deep_analysis = _run_deep_analysis(combined_context)
+
+    return {
+        "status": "success",
+        "profile": final_profile,
+        "deep_analysis": deep_analysis,   # deadlines, anomalies, metadata, raw_fields
+    }
