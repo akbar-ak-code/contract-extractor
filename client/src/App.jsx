@@ -91,6 +91,15 @@ const App = () => {
       });
       if (res.ok) {
         setResult(prev => {
+          // _deep_analysis isn't a {value, source_quote, history} field like the rest of
+          // the profile - it's the raw deadlines/anomalies/metadata object itself, saved
+          // directly on the backend (see main.py's update_po_field). Wrapping it in the
+          // same {value, history} shape as a normal field corrupts it: deepAnalysis.deadlines
+          // would end up nested under deepAnalysis.value.deadlines instead, which silently
+          // breaks every read of result._deep_analysis.deadlines/anomalies until reload.
+          if (field === "_deep_analysis") {
+            return { ...prev, _deep_analysis: value };
+          }
           const oldVal = prev[field].value;
           const currentHistory = prev[field].history || [];
           return {

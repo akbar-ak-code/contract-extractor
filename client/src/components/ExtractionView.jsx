@@ -302,22 +302,25 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
     setTriggerDates(newDates);
   };
 
-  const handleSaveDeadline = async (idx, calculatedResult) => {
+  const handleSaveDeadline = async (idx, calculatedResult, triggerDate) => {
     if (!calculatedResult) return;
     setSavingIdx(idx);
 
     const updatedDeepAnalysis = JSON.parse(JSON.stringify(deepAnalysis));
     updatedDeepAnalysis.deadlines[idx].computed_date = calculatedResult;
+    // Persist the trigger date itself too, not just the computed result - otherwise
+    // reopening the PO shows the final date with no record of what produced it, and
+    // the trigger input can't be pre-filled if the user wants to revise it later.
+    updatedDeepAnalysis.deadlines[idx].trigger_date = triggerDate;
 
     try {
       await onUpdate(dbId, "_deep_analysis", updatedDeepAnalysis);
-      result._deep_analysis.deadlines[idx].computed_date = calculatedResult;
       // Clear the edit state upon successful save
       setTriggerDates(prev => ({ ...prev, [idx + "_edit"]: false }));
     } catch (e) {
       console.error("Failed to save deadline", e);
     }
-    
+
     setSavingIdx(null);
   };
 
@@ -515,7 +518,10 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
                   const isNull = !dl.computed_date || String(dl.computed_date).toLowerCase() === 'null';
                   const isEditing = triggerDates[i + "_edit"];
                   const showCalculator = isNull || isEditing;
-                  const baseDateInput = triggerDates[i] || '';
+                  // Falls back to the previously-saved trigger date (if any) so reopening
+                  // the calculator to revise a deadline starts from what was actually used,
+                  // not blank - and so the saved badge below can show it for reference.
+                  const baseDateInput = triggerDates[i] !== undefined ? triggerDates[i] : (dl.trigger_date || '');
                   // anchor_description is just a short label naming the trigger event (e.g.
                   // "Date of Invoice(s)") - it never contains the actual "within 15 days"
                   // duration. That language lives in the reasoning_chain step descriptions
@@ -535,10 +541,15 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
 
                         {!isNull && !isEditing ? (
                           <div className="flex items-center gap-2">
+                            {dl.trigger_date && (
+                              <span className="text-[10px] text-zinc-500" title="Trigger date used to calculate this">
+                                from {dl.trigger_date}
+                              </span>
+                            )}
                             <div className="text-xs font-mono px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.1)]">
                               {dl.computed_date}
                             </div>
-                            <button 
+                            <button
                               onClick={() => setTriggerDates(prev => ({...prev, [i + "_edit"]: true}))}
                               className="p-1 text-zinc-500 hover:text-blue-400 transition-colors"
                               title="Edit Date"
@@ -599,7 +610,7 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
                               
                               {calculatedResult && (
                                <button 
-                                  onClick={() => handleSaveDeadline(i, calculatedResult)}
+                                  onClick={() => handleSaveDeadline(i, calculatedResult, baseDateInput)}
                                   disabled={savingIdx === i}
                                   title="Save this calculated date"
                                   className="p-1.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
