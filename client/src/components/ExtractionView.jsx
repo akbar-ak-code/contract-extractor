@@ -516,7 +516,15 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
                   const isEditing = triggerDates[i + "_edit"];
                   const showCalculator = isNull || isEditing;
                   const baseDateInput = triggerDates[i] || '';
-                  const offset = showCalculator ? parseAnchor(dl.anchor_description) : null;
+                  // anchor_description is just a short label naming the trigger event (e.g.
+                  // "Date of Invoice(s)") - it never contains the actual "within 15 days"
+                  // duration. That language lives in the reasoning_chain step descriptions
+                  // instead, so search those too, not anchor_description alone.
+                  const offsetSearchText = [
+                    dl.anchor_description,
+                    ...(dl.reasoning_chain || []).map(s => s.description)
+                  ].filter(Boolean).join(' ');
+                  const offset = showCalculator ? parseAnchor(offsetSearchText) : null;
                   const calculatedResult = offset ? addTime(baseDateInput, offset) : null;
 
                   return (
