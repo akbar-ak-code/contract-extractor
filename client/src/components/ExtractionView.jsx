@@ -129,9 +129,15 @@ const ProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActiveSour
                 display: 'flex', flexDirection: 'column', gap: 6
               }}>
                 {historyLog.map((hist, i) => (
-                  <div key={i} style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 500 }}>"{hist.value}"</span>
-                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>{new Date(hist.timestamp).toLocaleDateString()}</span>
+                  <div key={i} style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontWeight: 650, display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'line-through', fontWeight: 500 }}>
+                        {hist.old_value !== null && hist.old_value !== undefined ? `"${hist.old_value}"` : 'None'}
+                      </span>
+                      <span style={{ color: 'rgba(255,255,255,0.3)' }}>➔</span>
+                      <span style={{ color: '#4F8CFF' }}>"{hist.new_value}"</span>
+                    </span>
+                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>{new Date(hist.timestamp).toLocaleDateString()}</span>
                   </div>
                 ))}
               </div>
@@ -277,9 +283,15 @@ const DateProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActive
                 display: 'flex', flexDirection: 'column', gap: 6
               }}>
                 {historyLog.map((hist, i) => (
-                  <div key={i} style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 500 }}>"{hist.value}"</span>
-                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>{new Date(hist.timestamp).toLocaleDateString()}</span>
+                  <div key={i} style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontWeight: 650, display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'line-through', fontWeight: 500 }}>
+                        {hist.old_value !== null && hist.old_value !== undefined ? `"${hist.old_value}"` : 'None'}
+                      </span>
+                      <span style={{ color: 'rgba(255,255,255,0.3)' }}>➔</span>
+                      <span style={{ color: '#4F8CFF' }}>"{hist.new_value}"</span>
+                    </span>
+                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>{new Date(hist.timestamp).toLocaleDateString()}</span>
                   </div>
                 ))}
               </div>
