@@ -1,15 +1,15 @@
 // src/components/ExtractionView.jsx
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { 
   UploadCloud, Hash, Building, MapPin, Clock, AlertTriangle, 
   DollarSign, Shield, List, Edit3, FileText, Sparkles, Check, X, 
-  Edit2, History, ChevronDown, ChevronUp, Calendar, Zap, ArrowRight, Save,RefreshCw
+  Edit2, History, ChevronDown, ChevronUp, Calendar, Zap, ArrowRight, Save, RefreshCw
 } from 'lucide-react';
 
 // ── TIME MATH HELPERS ──────────────────────────────────────────────────────
 const parseAnchor = (text) => {
   if (!text) return null;
-  // Looks for e.g., "15 days", "2 months", "5 weeks"
   const match = text.match(/(\d+)\s*(day|week|month|year)s?/i);
   if (!match) return null;
   return { amount: parseInt(match[1]), unit: match[2].toLowerCase() };
@@ -27,7 +27,6 @@ const addTime = (baseDateStr, offset) => {
 
   return d.toISOString().split('T')[0];
 };
-// ───────────────────────────────────────────────────────────────────────────
 
 const ProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActiveSource }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -47,17 +46,17 @@ const ProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActiveSour
 
   return (
     <div
-      className="group border-b border-white/[0.04] last:border-b-0 transition-colors hover:bg-white/[0.02]"
+      className="group border-b border-white/[0.04] last:border-b-0 transition-colors hover:bg-white/[0.01]"
       style={{ display: 'flex', alignItems: 'flex-start', padding: '14px 20px', gap: 0 }}
     >
       <div style={{ flexShrink: 0, width: 156, display: 'flex', alignItems: 'flex-start', gap: 9, paddingTop: 1 }}>
         <span style={{
-          flexShrink: 0, width: 28, height: 28, borderRadius: 7,
-          background: 'rgba(99,102,241,0.1)', color: '#6366F1',
-          boxShadow: 'inset 0 0 0 1px rgba(99,102,241,0.2)',
+          flexShrink: 0, width: 28, height: 28, borderRadius: 8,
+          background: 'rgba(123, 97, 255, 0.1)', color: '#7B61FF',
+          border: '1px solid rgba(123, 97, 255, 0.2)',
           display: 'flex', alignItems: 'center', justifyContent: 'center'
         }}>{icon}</span>
-        <span style={{ fontSize: 12, fontWeight: 500, color: '#a1a1aa', lineHeight: 1.4, paddingTop: 6 }}>{label}</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255, 255, 255, 0.65)', lineHeight: 1.4, paddingTop: 6 }}>{label}</span>
       </div>
 
       <div style={{ flex: 1, minWidth: 0, paddingLeft: 12, paddingTop: 2 }}>
@@ -66,7 +65,7 @@ const ProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActiveSour
             value={tempVal}
             onChange={e => setTempVal(e.target.value)}
             autoFocus
-            className="glass-input"
+            className="mac-glass-input"
             style={{
               width: '100%', minHeight: 56,
               resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box'
@@ -75,89 +74,82 @@ const ProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActiveSour
         ) : isMissing ? (
           <span style={{
             display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5,
-            background: 'rgba(239,68,68,0.1)', color: '#f87171', fontStyle: 'italic',
-            padding: '2px 8px', borderRadius: 5, boxShadow: 'inset 0 0 0 1px rgba(239,68,68,0.2)'
+            background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', fontStyle: 'italic',
+            padding: '3px 10px', borderRadius: 8, border: '1px solid rgba(239,68,68,0.2)'
           }}>
             <AlertTriangle size={11} /> Not found
           </span>
         ) : (
           <>
-            <span style={{ fontSize: 13, color: '#e4e4e7', lineHeight: 1.65, wordBreak: 'break-word', display: 'block' }}>{val}</span>
-            <div style={{ display: 'flex', gap: 16, marginTop: 8, justifyContent: 'flex-start' }}>
+            <span style={{ fontSize: 13.5, color: '#ffffff', lineHeight: 1.65, wordBreak: 'break-word', display: 'block', fontWeight: 500 }}>{val}</span>
+            <div style={{ display: 'flex', gap: 10, marginTop: 8, justifyContent: 'flex-start' }}>
               <button
                 onClick={() => setActiveSource({ label, quote, locate: true })}
                 title="Open source location"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 4,
-                  background: 'none',
-                  border: 'none',
-                  color: '#60a5fa',
+                  gap: 6,
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '99px',
+                  color: '#4F8CFF',
                   fontSize: 11,
-                  fontWeight: 500,
+                  fontWeight: 700,
                   cursor: 'pointer',
-                  padding: '2px 0',
-                  transition: 'opacity 0.15s',
-                  fontFamily: 'inherit'
+                  padding: '4px 12px',
+                  transition: 'all 0.2s ease',
+                  fontFamily: 'inherit',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
                 }}
-                onMouseEnter={e => { e.currentTarget.style.color = '#93c5fd'; }}
-                onMouseLeave={e => { e.currentTarget.style.color = '#60a5fa'; }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'; e.currentTarget.style.borderColor = 'rgba(79, 140, 255, 0.4)'; e.currentTarget.style.color = '#ffffff'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'; e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'; e.currentTarget.style.color = '#4F8CFF'; }}
               >
                 <span>🔗</span> View in PDF
               </button>
-            </div>
-          </>
-        )}
 
-        {hasHistory && !isEditing && (
-          <div style={{ marginTop: 7 }}>
-            <button
-              onClick={() => setShowHistory(s => !s)}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5,
-                background: 'rgba(59,130,246,0.1)', color: '#60a5fa', border: 'none',
-                padding: '2px 9px', borderRadius: 999, cursor: 'pointer', fontWeight: 500
-              }}
-            >
-              <History size={10} /> Edited ({historyLog.length}) {showHistory ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-            </button>
-            {showHistory && (
-              <div style={{ marginTop: 6, borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.4)', overflow: 'hidden' }}>
-                {historyLog.slice().reverse().map((entry, idx) => (
-                  <div key={idx} style={{ padding: '9px 13px', borderBottom: idx < historyLog.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-                    <div style={{ fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#52525b', fontWeight: 600, marginBottom: 3 }}>
-                      {new Date(entry.timestamp).toLocaleString()}
-                    </div>
-                    <div style={{ fontSize: 11.5, color: '#d4d4d8' }}>
-                      <span style={{ color: '#f87171', textDecoration: 'line-through', marginRight: 5 }}>{entry.old_value || 'Empty'}</span>
-                      →
-                      <span style={{ color: '#34d399', marginLeft: 5 }}>{entry.new_value}</span>
-                    </div>
+              {hasHistory && (
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'rgba(255, 255, 255, 0.45)', fontSize: 11,
+                    display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit'
+                  }}
+                >
+                  <History size={11} /> {showHistory ? 'Hide history' : `History (${historyLog.length})`}
+                </button>
+              )}
+            </div>
+
+            {showHistory && hasHistory && (
+              <div style={{
+                marginTop: 10, padding: 12, borderRadius: 12,
+                background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.06)',
+                display: 'flex', flexDirection: 'column', gap: 6
+              }}>
+                {historyLog.map((hist, i) => (
+                  <div key={i} style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 500 }}>"{hist.value}"</span>
+                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>{new Date(hist.timestamp).toLocaleDateString()}</span>
                   </div>
                 ))}
               </div>
             )}
-          </div>
+          </>
         )}
       </div>
 
       <div style={{ flexShrink: 0, display: 'flex', gap: 5, paddingLeft: 10, paddingTop: 1 }}>
         {isEditing ? (
           <>
-            <button onClick={handleSave} title="Save"
-              style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(52,211,153,0.1)', border: 'none', color: '#34d399', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Check size={14} />
-            </button>
-            <button onClick={() => { setTempVal(val); setIsEditing(false); }} title="Cancel"
-              style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(239,68,68,0.1)', border: 'none', color: '#f87171', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <X size={14} />
-            </button>
+            <button onClick={handleSave} className="mac-btn-primary" style={{ width: 28, height: 28, padding: 0 }}><Check size={14} /></button>
+            <button onClick={() => { setTempVal(val); setIsEditing(false); }} className="mac-btn-secondary" style={{ width: 28, height: 28, padding: 0 }}><X size={14} /></button>
           </>
         ) : (
           <button onClick={() => setIsEditing(true)} title="Edit"
-            style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: '#71717a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.background='rgba(99,102,241,0.12)'; e.currentTarget.style.color='#6366F1'; e.currentTarget.style.borderColor='rgba(99,102,241,0.4)'; }}>
+            style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.45)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.background='rgba(123,97,255,0.12)'; e.currentTarget.style.color='#7B61FF'; e.currentTarget.style.borderColor='rgba(123,97,255,0.4)'; }}>
             <Edit2 size={12} />
           </button>
         )}
@@ -169,10 +161,13 @@ const ProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActiveSour
 const DateProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActiveSource }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [tempVal, setTempVal] = useState(data?.value || "");
+  const [showHistory, setShowHistory] = useState(false);
 
   const val = data?.value || "Not found";
   const quote = data?.source_quote || "No source quote extracted.";
   const isMissing = !val || val === "Not found" || val === "N/A" || val === "not_found" || val === "";
+  const historyLog = data?.history || [];
+  const hasHistory = historyLog.length > 0;
 
   const handleSave = async () => {
     if (tempVal !== val) await onUpdate(dbId, fieldKey, tempVal);
@@ -180,32 +175,33 @@ const DateProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActive
   };
 
   const toInputDate = (str) => {
-    if (!str) return "";
+    if (!str) return '';
     const d = new Date(str);
-    if (isNaN(d)) return "";
-    return d.toISOString().split("T")[0];
+    return isNaN(d) ? '' : d.toISOString().split('T')[0];
   };
 
   const handleCalendarChange = (e) => {
     const raw = e.target.value;
     if (!raw) return;
-    const [y, m, d] = raw.split("-");
-    setTempVal(`${d}/${m}/${y}`);
+    const formatted = new Date(raw).toLocaleDateString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric'
+    }).replace(/ /g, '-');
+    setTempVal(formatted);
   };
 
   return (
     <div
-      className="group border-b border-white/[0.04] last:border-b-0 transition-colors hover:bg-white/[0.02]"
+      className="group border-b border-white/[0.04] last:border-b-0 transition-colors hover:bg-white/[0.01]"
       style={{ display: 'flex', alignItems: 'flex-start', padding: '14px 20px', gap: 0 }}
     >
       <div style={{ flexShrink: 0, width: 156, display: 'flex', alignItems: 'flex-start', gap: 9, paddingTop: 1 }}>
         <span style={{
-          flexShrink: 0, width: 28, height: 28, borderRadius: 7,
+          flexShrink: 0, width: 28, height: 28, borderRadius: 8,
           background: 'rgba(99,102,241,0.1)', color: '#6366F1',
           boxShadow: 'inset 0 0 0 1px rgba(99,102,241,0.2)',
           display: 'flex', alignItems: 'center', justifyContent: 'center'
         }}>{icon}</span>
-        <span style={{ fontSize: 12, fontWeight: 500, color: '#a1a1aa', lineHeight: 1.4, paddingTop: 6 }}>{label}</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255, 255, 255, 0.65)', lineHeight: 1.4, paddingTop: 6 }}>{label}</span>
       </div>
 
       <div style={{ flex: 1, minWidth: 0, paddingLeft: 12, paddingTop: 2 }}>
@@ -213,88 +209,133 @@ const DateProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActive
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <input
               value={tempVal} onChange={e => setTempVal(e.target.value)} autoFocus
-              className="glass-input"
+              className="mac-glass-input"
               style={{
-                width: '100%', minHeight: 38, padding: '7px 11px'
+                width: '100%', minHeight: 38, padding: '7px 11px', boxSizing: 'border-box'
               }}
             />
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 11, color: '#71717a' }}>Or pick:</span>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>Or pick:</span>
               <input
                 type="date" value={toInputDate(tempVal)} onChange={handleCalendarChange}
-                className="glass-input"
+                className="mac-glass-input"
                 style={{ padding: '4px 9px', fontSize: 12, colorScheme: 'dark', minHeight: 'unset', width: 'auto' }}
               />
             </div>
           </div>
         ) : isMissing ? (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, background: 'rgba(239,68,68,0.1)', color: '#f87171', padding: '2px 8px', borderRadius: 5 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, background: 'rgba(239,68,68,0.1)', color: '#ef4444', padding: '3px 10px', borderRadius: 8, border: '1px solid rgba(239,68,68,0.2)' }}>
             <AlertTriangle size={11} /> Not found
           </span>
         ) : (
           <>
-            <span style={{ fontSize: 13, color: '#e4e4e7', display: 'block' }}>{val}</span>
-            <div style={{ display: 'flex', gap: 16, marginTop: 8, justifyContent: 'flex-start' }}>
+            <span style={{ fontSize: 13.5, color: '#ffffff', display: 'block', fontWeight: 500 }}>{val}</span>
+            <div style={{ display: 'flex', gap: 10, marginTop: 8, justifyContent: 'flex-start' }}>
               <button
                 onClick={() => setActiveSource({ label, quote, locate: true })}
                 title="Open source location"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 4,
-                  background: 'none',
-                  border: 'none',
-                  color: '#60a5fa',
+                  gap: 6,
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '99px',
+                  color: '#4F8CFF',
                   fontSize: 11,
-                  fontWeight: 500,
+                  fontWeight: 700,
                   cursor: 'pointer',
-                  padding: '2px 0',
-                  transition: 'opacity 0.15s',
-                  fontFamily: 'inherit'
+                  padding: '4px 12px',
+                  transition: 'all 0.2s ease',
+                  fontFamily: 'inherit',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
                 }}
-                onMouseEnter={e => { e.currentTarget.style.color = '#93c5fd'; }}
-                onMouseLeave={e => { e.currentTarget.style.color = '#60a5fa'; }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'; e.currentTarget.style.borderColor = 'rgba(79, 140, 255, 0.4)'; e.currentTarget.style.color = '#ffffff'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'; e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'; e.currentTarget.style.color = '#4F8CFF'; }}
               >
                 <span>🔗</span> View in PDF
               </button>
+
+              {hasHistory && (
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'rgba(255, 255, 255, 0.45)', fontSize: 11,
+                    display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit'
+                  }}
+                >
+                  <History size={11} /> {showHistory ? 'Hide history' : `History (${historyLog.length})`}
+                </button>
+              )}
             </div>
+
+            {showHistory && hasHistory && (
+              <div style={{
+                marginTop: 10, padding: 12, borderRadius: 12,
+                background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.06)',
+                display: 'flex', flexDirection: 'column', gap: 6
+              }}>
+                {historyLog.map((hist, i) => (
+                  <div key={i} style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 500 }}>"{hist.value}"</span>
+                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>{new Date(hist.timestamp).toLocaleDateString()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </>
         )}
       </div>
 
       <div style={{ flexShrink: 0, display: 'flex', gap: 5, paddingLeft: 10, paddingTop: 1 }}>
-      <div style={{ flexShrink: 0, display: 'flex', gap: 5, paddingLeft: 10, paddingTop: 1 }}>
         {isEditing ? (
           <>
-            <button onClick={handleSave} style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Check size={14} /></button>
-            <button onClick={() => { setTempVal(val); setIsEditing(false); }} style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
+            <button onClick={handleSave} className="mac-btn-primary" style={{ width: 28, height: 28, padding: 0 }}><Check size={14} /></button>
+            <button onClick={() => { setTempVal(val); setIsEditing(false); }} className="mac-btn-secondary" style={{ width: 28, height: 28, padding: 0 }}><X size={14} /></button>
           </>
         ) : (
-          <button onClick={() => setIsEditing(true)} style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: '#71717a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Edit2 size={12} /></button>
+          <button onClick={() => setIsEditing(true)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.45)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Edit2 size={12} /></button>
         )}
-      </div>
       </div>
     </div>
   );
 };
 
 const Card = ({ title, icon, children }) => (
-  <section className="glass-card overflow-hidden">
-    <header className="flex items-center gap-2.5 border-b border-white/[0.06] bg-white/[0.01] px-5 py-3.5">
-      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20">
+  <motion.section
+    initial={{ opacity: 0, y: 12, scale: 0.98 }}
+    animate={{ opacity: 1, y: 0, scale: 1 }}
+    transition={{ duration: 0.35, ease: "easeOut" }}
+    className="mac-glass-card overflow-hidden"
+    style={{ display: 'flex', flexDirection: 'column' }}
+  >
+    <header style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+      padding: '14px 20px', background: 'rgba(255, 255, 255, 0.01)'
+    }}>
+      <span style={{
+        display: 'flex', width: 26, height: 26, borderRadius: 8,
+        background: 'linear-gradient(135deg, rgba(123, 97, 255, 0.15) 0%, rgba(79, 140, 255, 0.15) 100%)',
+        color: '#7B61FF', alignItems: 'center', justifyContent: 'center',
+        border: '1px solid rgba(123, 97, 255, 0.25)'
+      }}>
         {icon}
       </span>
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">{title}</h2>
+      <h2 style={{ margin: 0, fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255, 255, 255, 0.75)' }}>
+        {title}
+      </h2>
     </header>
-    <div>{children}</div>
-  </section>
+    <div style={{ flex: 1 }}>{children}</div>
+  </motion.section>
 );
 
 const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFileSelection, handleAnalyze, setActiveSource, dbId, onUpdate, customFields = [] }) => {
   const deepAnalysis = result?._deep_analysis || null;
   const hasRawFields = deepAnalysis?.raw_fields && Object.keys(deepAnalysis.raw_fields).length > 0;
-  const hasDeadlines = deepAnalysis?.deadlines && deepAnalysis.deadlines.length > 0;
   const hasAnomalies = deepAnalysis?.anomalies && deepAnalysis.anomalies.length > 0;
+  const hasDeadlines = deepAnalysis?.deadlines && deepAnalysis.deadlines.length > 0;
 
   // ── TRIGGER STATE & AUTO-SYNC LOGIC ──
   const [triggerDates, setTriggerDates] = useState({});
@@ -302,7 +343,6 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
 
   const handleTriggerChange = (idx, dateStr, description) => {
     const newDates = { ...triggerDates, [idx]: dateStr };
-    
     const lowerDesc = (description || "").toLowerCase();
     const keywords = ['invoice', 'delivery', 'dispatch', 'completion', 'receipt'];
     const matchedKeyword = keywords.find(k => lowerDesc.includes(k));
@@ -317,7 +357,8 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
     }
     setTriggerDates(newDates);
   };
-const handleSaveDeadline = async (idx, calculatedResult) => {
+
+  const handleSaveDeadline = async (idx, calculatedResult) => {
     if (!calculatedResult) return;
     setSavingIdx(idx);
 
@@ -333,17 +374,18 @@ const handleSaveDeadline = async (idx, calculatedResult) => {
     
     setSavingIdx(null);
   };
+
   return (
-    <div className="animate-in fade-in duration-500">
+    <div className="animate-in fade-in duration-500" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       {!result ? (
-        <div onClick={() => !loading && fileInputRef.current.click()} className="group relative overflow-hidden rounded-2xl border-2 border-dashed border-white/10 bg-white/[0.01] backdrop-blur-xl px-10 py-24 text-center cursor-pointer transition-all duration-300 hover:border-indigo-500/40 hover:bg-white/[0.02]">
+        <div onClick={() => !loading && fileInputRef.current.click()} className="group relative overflow-hidden rounded-2xl border-2 border-dashed border-white/10 bg-white/[0.01] backdrop-blur-xl px-10 py-24 text-center cursor-pointer transition-all duration-300 hover:border-indigo-500/40 hover:bg-white/[0.02]" style={{ borderRadius: 24 }}>
           <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={(e) => handleFileSelection(e.target.files[0])} />
           <div className="relative">
             <UploadCloud size={36} className="mx-auto mb-6 text-indigo-400" />
-            <h3 className="mb-2 text-2xl font-semibold tracking-tight text-zinc-100">{file ? file.name : "Upload Purchase Order"}</h3>
+            <h3 className="mb-2 text-2xl font-bold tracking-tight text-white">{file ? file.name : "Upload Purchase Order"}</h3>
             {file && !loading && (
-              <button onClick={(e) => { e.stopPropagation(); handleAnalyze(); }} className="mt-8 glass-btn-primary">
-                <Sparkles size={16} /> Run Enterprise Extraction
+              <button onClick={(e) => { e.stopPropagation(); handleAnalyze(); }} className="mt-8 mac-btn-primary">
+                <Sparkles size={15} /> Run Enterprise Extraction
               </button>
             )}
             {loading && (
@@ -356,102 +398,104 @@ const handleSaveDeadline = async (idx, calculatedResult) => {
           </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-5">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6" style={{ alignItems: 'start' }}>
           
           {hasAnomalies && (
-            <Card title="Detected Anomalies & Risks" icon={<AlertTriangle size={13} className="text-red-400"/>} borderColor="border-red-500/30" headerBg="bg-red-500/10">
-              <div className="p-4 flex flex-col gap-3">
-                {deepAnalysis.anomalies.map((an, i) => (
-                  <div key={i} className="rounded-lg border border-red-500/20 bg-red-500/5 p-4 text-red-200 flex items-start gap-3">
-                    <AlertTriangle size={16} className="text-red-400 shrink-0 mt-0.5" />
-                    <div>
-                      <div className="font-semibold text-sm mb-1 text-red-400">{an.type}</div>
-                      <div className="text-sm opacity-90">{an.description} <span className="opacity-75 text-xs ml-1">(Page {an.page})</span></div>
+            <div className="xl:col-span-2">
+              <Card title="Detected Anomalies & Risks" icon={<AlertTriangle size={13} className="text-red-400"/>}>
+                <div className="p-4 flex flex-col gap-3">
+                  {deepAnalysis.anomalies.map((an, i) => (
+                    <div key={i} className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-red-200 flex items-start gap-3">
+                      <AlertTriangle size={16} className="text-red-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold text-sm mb-1 text-red-400">{an.type}</div>
+                        <div className="text-sm opacity-90">{an.description} <span className="opacity-75 text-xs ml-1">(Page {an.page})</span></div>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
+                  ))}
+                </div>
+              </Card>
+            </div>
           )}
 
           {/* ── DEADLINES CARD WITH INTERACTIVE CALCULATOR ── */}
           {hasDeadlines && (
-            <Card title="Contract Deadlines & Milestones" icon={<Calendar size={13} className="text-orange-400"/>}>
-              <div className="p-4 flex flex-col gap-3">
-                {deepAnalysis.deadlines.map((dl, i) => {
-                  const isNull = !dl.computed_date || String(dl.computed_date).toLowerCase() === 'null';
-                  const baseDateInput = triggerDates[i] || '';
-                  const offset = isNull ? parseAnchor(dl.anchor_description) : null;
-                  const calculatedResult = offset ? addTime(baseDateInput, offset) : null;
+            <div className="xl:col-span-2">
+              <Card title="Contract Deadlines & Milestones" icon={<Calendar size={13} className="text-orange-400"/>}>
+                <div className="p-4 flex flex-col gap-3">
+                  {deepAnalysis.deadlines.map((dl, i) => {
+                    const isNull = !dl.computed_date || String(dl.computed_date).toLowerCase() === 'null';
+                    const baseDateInput = triggerDates[i] || '';
+                    const offset = isNull ? parseAnchor(dl.anchor_description) : null;
+                    const calculatedResult = offset ? addTime(baseDateInput, offset) : null;
 
-                  return (
-                    <div key={i} className="rounded-lg border border-white/5 bg-white/[0.02] p-4 flex flex-col gap-3">
-                      
-                      <div className="flex justify-between items-start">
-                        <div className="font-semibold text-zinc-200 text-sm">{dl.label}</div>
-                        {!isNull ? (
-                          <div className="text-xs font-mono px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.1)]">
-                            {dl.computed_date}
-                          </div>
-                        ) : (
-                          <div className="text-[10px] font-semibold tracking-wider uppercase px-2 py-1 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
-                            Awaiting Trigger
+                    return (
+                      <div key={i} className="rounded-xl border border-white/5 bg-white/[0.01] p-4 flex flex-col gap-3">
+                        <div className="flex justify-between items-start">
+                          <div className="font-bold text-zinc-200 text-sm">{dl.label}</div>
+                          {!isNull ? (
+                            <div className="text-xs font-mono px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.1)]">
+                              {dl.computed_date}
+                            </div>
+                          ) : (
+                            <div className="text-[10px] font-bold tracking-wider uppercase px-2 py-1 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+                              Awaiting Trigger
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="text-xs text-zinc-400 flex items-center gap-2">
+                          <span className="uppercase tracking-wider text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-zinc-350 font-bold">
+                            {dl.anchor_type}
+                          </span>
+                          {dl.anchor_description}
+                        </div>
+
+                        {/* Interactive Calculator UI for Null Deadlines */}
+                        {isNull && (
+                          <div className="mt-2 flex items-center gap-3 p-3 rounded-lg bg-black/30 border border-white/[0.03]">
+                            <div className="flex flex-col gap-1 w-[160px]">
+                              <label className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold">Trigger Date</label>
+                              <input 
+                                type="date" 
+                                value={baseDateInput}
+                                onChange={(e) => handleTriggerChange(i, e.target.value, dl.anchor_description)}
+                                className="mac-glass-input"
+                                style={{ colorScheme: 'dark', padding: '6px 10px', fontSize: 12, minHeight: 'unset' }}
+                              />
+                            </div>
+
+                            <ArrowRight size={14} className="text-zinc-650 mt-4" />
+
+                            <div className="flex flex-col gap-1 flex-1">
+                              <label className="text-[10px] uppercase tracking-wider text-zinc-550 font-bold">
+                                Calculated Offset {offset ? `(+${offset.amount} ${offset.unit}s)` : '(Manual)'}
+                              </label>
+                              <div className="flex items-center gap-2">
+                                <div className={`px-3 py-1.5 rounded-lg text-xs font-mono border ${calculatedResult ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-zinc-900 border-zinc-800 text-zinc-650'}`}>
+                                  {calculatedResult || 'YYYY-MM-DD'}
+                                </div>
+                                
+                                {calculatedResult && (
+                                  <button 
+                                    onClick={() => handleSaveDeadline(i, calculatedResult)}
+                                    disabled={savingIdx === i}
+                                    title="Save this calculated date"
+                                    className="p-1.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+                                  >
+                                    {savingIdx === i ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
-
-                      <div className="text-xs text-zinc-400 flex items-center gap-2">
-                        <span className="uppercase tracking-wider text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-zinc-300">
-                          {dl.anchor_type}
-                        </span>
-                        {dl.anchor_description}
-                      </div>
-
-                      {/* Interactive Calculator UI for Null Deadlines */}
-                      {isNull && (
-                        <div className="mt-2 flex items-center gap-3 p-3 rounded-md bg-black/40 border border-white/[0.03]">
-                          <div className="flex flex-col gap-1 w-[160px]">
-                            <label className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">Trigger Date</label>
-                            <input 
-                              type="date" 
-                              value={baseDateInput}
-                              onChange={(e) => handleTriggerChange(i, e.target.value, dl.anchor_description)}
-                              className="glass-input"
-                              style={{ colorScheme: 'dark', padding: '6px 10px', fontSize: 12, minHeight: 'unset' }}
-                            />
-                          </div>
-
-                          <ArrowRight size={14} className="text-zinc-600 mt-4" />
-
-                          <div className="flex flex-col gap-1 flex-1">
-                            <label className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">
-                              Calculated Offset {offset ? `(+${offset.amount} ${offset.unit}s)` : '(Manual)'}
-                            </label>
-                            <div className="flex items-center gap-2">
-                              <div className={`px-3 py-1.5 rounded text-xs font-mono border ${calculatedResult ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-zinc-900 border-zinc-800 text-zinc-650'}`}>
-                                {calculatedResult || 'YYYY-MM-DD'}
-                              </div>
-                              
-                              {calculatedResult && (
-                               <button 
-                                  onClick={() => handleSaveDeadline(i, calculatedResult)}
-                                  disabled={savingIdx === i}
-                                  title="Save this calculated date"
-                                  className="p-1.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
-                                >
-                                  {savingIdx === i ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
+                    );
+                  })}
+                </div>
+              </Card>
+            </div>
           )}
 
           <Card title="Document Headers" icon={<FileText size={13} />}>
@@ -463,14 +507,16 @@ const handleSaveDeadline = async (idx, calculatedResult) => {
             <ProfileRow icon={<DollarSign size={14} />} label="Total Value" fieldKey="total_value" data={result.total_value} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
           </Card>
 
-          <Card title="Terms & Conditions" icon={<Shield size={13} />}>
-            <ProfileRow icon={<Shield size={14} />} label="Conditions" fieldKey="conditions_of_agreement" data={result.conditions_of_agreement} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
-            <ProfileRow icon={<DollarSign size={14} />} label="Payment Terms" fieldKey="conditions_of_payment" data={result.conditions_of_payment} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
-          </Card>
+          <div className="flex flex-col gap-6">
+            <Card title="Terms & Conditions" icon={<Shield size={13} />}>
+              <ProfileRow icon={<Shield size={14} />} label="Conditions" fieldKey="conditions_of_agreement" data={result.conditions_of_agreement} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
+              <ProfileRow icon={<DollarSign size={14} />} label="Payment Terms" fieldKey="conditions_of_payment" data={result.conditions_of_payment} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
+            </Card>
 
-          <Card title="Signatures" icon={<Edit3 size={13} />}>
-            <ProfileRow icon={<Edit3 size={14} />} label="Signatory" fieldKey="authorising_signatory" data={result.authorising_signatory} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
-          </Card>
+            <Card title="Signatures" icon={<Edit3 size={13} />}>
+              <ProfileRow icon={<Edit3 size={14} />} label="Signatory" fieldKey="authorising_signatory" data={result.authorising_signatory} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
+            </Card>
+          </div>
 
           {customFields && customFields.length > 0 && (
             <Card title="Global Custom Fields" icon={<Sparkles size={13} />}>
@@ -481,68 +527,73 @@ const handleSaveDeadline = async (idx, calculatedResult) => {
           )}
 
           {hasRawFields && (
-            <Card title="PO-Specific Attributes" icon={<Zap size={13} className="text-yellow-400"/>}>
+            <Card title="PO-Specific Attributes" icon={<Zap size={13} className="text-yellow-450"/>}>
               <div className="flex flex-col">
                 {Object.entries(deepAnalysis.raw_fields).map(([key, val], idx) => (
-                   <div key={key} className={`flex gap-4 p-4 ${idx !== Object.keys(deepAnalysis.raw_fields).length - 1 ? 'border-b border-white/[0.04]' : ''} hover:bg-white/[0.02] transition-colors`}>
-                      <div className="w-1/3 text-xs font-semibold text-zinc-400 uppercase tracking-wider">{key.replace(/_/g, ' ')}</div>
-                      <div className="w-2/3 text-sm text-zinc-200">{String(val)}</div>
-                   </div>
+                  <div key={key} className={`flex gap-4 p-4 ${idx !== Object.keys(deepAnalysis.raw_fields).length - 1 ? 'border-b border-white/[0.04]' : ''} hover:bg-white/[0.01] transition-colors`}>
+                    <div className="w-1/3 text-xs font-bold text-zinc-400 uppercase tracking-wider">{key.replace(/_/g, ' ')}</div>
+                    <div className="w-2/3 text-sm text-zinc-200">{String(val)}</div>
+                  </div>
                 ))}
               </div>
             </Card>
           )}
 
-          <Card title="Line Items" icon={<List size={13} />}>
-            <div className="p-5">
-              {(() => {
-                const raw = result.line_items;
-                const lineItemsArray = Array.isArray(raw) ? raw : (raw?.status === "found" && Array.isArray(raw.value) ? raw.value : []);
-                return lineItemsArray.length > 0 ? (
-                <div className="overflow-hidden rounded-xl border border-white/[0.06]">
-                  <table className="w-full border-collapse text-sm text-zinc-100">
-                    <thead>
-                      <tr className="bg-white/[0.03] text-left">
-                        <th className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Description</th>
-                        <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Qty</th>
-                        <th className="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Unit Price</th>
-                        <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Src</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {lineItemsArray.map((item, idx) => (
-                        <tr key={idx} className="border-t border-white/[0.04] transition-colors hover:bg-white/[0.02]">
-                          <td className="px-4 py-3 leading-relaxed text-sm">{item.description}</td>
-                          <td className="px-4 py-3 text-center font-mono text-zinc-300 text-sm">{item.quantity}</td>
-                          <td className="px-4 py-3 text-right font-mono font-semibold text-emerald-400 text-sm">{Number(item.unit_price || 0).toFixed(2)}</td>
-                          <td className="px-4 py-3 text-center">
-                            <button 
-                              onClick={() => setActiveSource({ label: `Line Item ${idx + 1}`, quote: item.source_quote || "No quote found.", locate: true })} 
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                color: '#60a5fa',
-                                fontSize: 11,
-                                fontWeight: 500,
-                                cursor: 'pointer',
-                                fontFamily: 'inherit',
-                                transition: 'all 0.15s'
-                              }}
-                              onMouseEnter={e => { e.currentTarget.style.color = '#93c5fd'; }}
-                              onMouseLeave={e => { e.currentTarget.style.color = '#60a5fa'; }}
-                            >
-                              View in PDF
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                ) : <div className="text-zinc-500 italic text-sm py-8 text-center border border-dashed border-white/5 rounded-lg">No line items parsed.</div>;
-              })()}
-            </div>
-          </Card>
+          <div className="xl:col-span-2">
+            <Card title="Line Items" icon={<List size={13} />}>
+              <div className="p-5">
+                {(() => {
+                  const raw = result.line_items;
+                  const lineItemsArray = Array.isArray(raw) ? raw : (raw?.status === "found" && Array.isArray(raw.value) ? raw.value : []);
+                  return lineItemsArray.length > 0 ? (
+                    <div className="overflow-hidden rounded-xl border border-white/[0.06]">
+                      <table className="w-full border-collapse text-sm text-zinc-100">
+                        <thead>
+                          <tr className="bg-white/[0.03] text-left">
+                            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-zinc-400">Description</th>
+                            <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-400">Qty</th>
+                            <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-zinc-400">Unit Price</th>
+                            <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-400">Src</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {lineItemsArray.map((item, idx) => (
+                            <tr key={idx} className="border-t border-white/[0.04] transition-colors hover:bg-white/[0.01]">
+                              <td className="px-4 py-3 leading-relaxed text-sm">{item.description}</td>
+                              <td className="px-4 py-3 text-center font-mono text-zinc-300 text-sm">{item.quantity}</td>
+                              <td className="px-4 py-3 text-right font-mono font-bold text-emerald-450 text-sm">{Number(item.unit_price || 0).toFixed(2)}</td>
+                              <td className="px-4 py-3 text-center">
+                                <button 
+                                  onClick={() => setActiveSource({ label: `Line Item ${idx + 1}`, quote: item.source_quote || "No quote found.", locate: true })} 
+                                  style={{
+                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    color: '#4F8CFF',
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    padding: '4px 12px',
+                                    borderRadius: '99px',
+                                    transition: 'all 0.2s ease',
+                                    fontFamily: 'inherit',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                                  }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'; e.currentTarget.style.borderColor = 'rgba(79, 140, 255, 0.3)'; e.currentTarget.style.color = '#ffffff'; }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'; e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'; e.currentTarget.style.color = '#4F8CFF'; }}
+                                >
+                                  View in PDF
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : <div className="text-zinc-500 italic text-sm py-8 text-center border border-dashed border-white/5 rounded-lg">No line items parsed.</div>;
+                })()}
+              </div>
+            </Card>
+          </div>
         </div>
       )}
     </div>

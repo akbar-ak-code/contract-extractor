@@ -360,40 +360,35 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
 
   return (
     <aside
-      className="animate-in slide-in-from-right duration-300 z-50"
+      className="mac-glass-panel animate-in slide-in-from-right duration-300"
       style={{
         display: 'flex',
         flexDirection: 'column',
-        width: '600px',
+        width: '100%',
         height: '100%',
-        borderLeft: '1px solid rgba(255, 255, 255, 0.06)',
-        background: 'rgba(18, 18, 20, 0.75)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        boxShadow: '-20px 0 60px rgba(0,0,0,0.8)',
         overflow: 'hidden',
+        border: '1px solid rgba(255, 255, 255, 0.15)',
+        borderRadius: 24
       }}
     >
       {/* Header */}
-      <div style={{ flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'transparent', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'transparent', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Shield size={16} color="#34d399" />
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(52,211,153,0.15) 100%)', border: '1px solid rgba(16,185,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Shield size={16} color="#10b981" />
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#34d399', letterSpacing: '0.03em' }}>Source Verification</span>
+              <span style={{ fontSize: 13.5, fontWeight: 700, color: '#10b981', letterSpacing: '0.02em' }}>Source Verification</span>
               {isIndexing && (
-                <span className="animate-pulse" style={{ fontSize: 10, color: '#60a5fa' }}>(Indexing PDF...)</span>
+                <span className="animate-pulse" style={{ fontSize: 10.5, color: '#4F8CFF', fontWeight: 600 }}>(Indexing...)</span>
               )}
             </div>
-            <div style={{ fontSize: 11, color: '#71717a', marginTop: 2 }}>Field: {activeSource.label}</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>Field: {activeSource.label}</div>
           </div>
         </div>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#71717a', padding: 6, borderRadius: 6 }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#fff'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#71717a'; }}>
-          <X size={18} />
+        <button onClick={onClose} className="mac-btn-secondary" style={{ width: 28, height: 28, padding: 0, borderRadius: 8 }}>
+          <X size={15} />
         </button>
       </div>
 
@@ -402,23 +397,24 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
         flexShrink: 0,
         maxHeight: '32%',
         overflowY: 'auto',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
-        background: 'transparent',
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        background: 'rgba(255, 255, 255, 0.01)',
         padding: '16px 24px',
       }}>
-        <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#52525b', fontWeight: 600, marginBottom: 8 }}>
+        <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255, 255, 255, 0.45)', fontWeight: 700, marginBottom: 8 }}>
           AI Extracted Passage
         </div>
         <div style={{
           whiteSpace: 'pre-wrap',
-          borderLeft: '4px solid #0ea5e9',
-          background: 'rgba(0,0,0,0.4)',
+          borderLeft: '4px solid #7B61FF',
+          background: 'rgba(0,0,0,0.3)',
           padding: '12px 16px',
           fontFamily: 'monospace',
-          fontSize: 12.5,
+          fontSize: 12,
           lineHeight: 1.7,
-          color: '#d4d4d8',
-          borderRadius: '0 8px 8px 0',
+          color: 'rgba(255,255,255,0.9)',
+          borderRadius: '0 12px 12px 0',
+          border: '1px solid rgba(255, 255, 255, 0.05)',
         }}>
           "{activeSource.quote}"
         </div>
@@ -430,19 +426,21 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 4,
-                background: 'none',
-                border: 'none',
-                color: '#60a5fa',
+                gap: 6,
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '99px',
+                color: '#4F8CFF',
                 fontSize: 11,
-                fontWeight: 500,
+                fontWeight: 700,
                 cursor: 'pointer',
-                padding: '2px 0',
-                transition: 'all 0.15s',
-                fontFamily: 'inherit'
+                padding: '4px 12px',
+                transition: 'all 0.2s ease',
+                fontFamily: 'inherit',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
               }}
-              onMouseEnter={e => { e.currentTarget.style.color = '#93c5fd'; }}
-              onMouseLeave={e => { e.currentTarget.style.color = '#60a5fa'; }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'; e.currentTarget.style.borderColor = 'rgba(79, 140, 255, 0.4)'; e.currentTarget.style.color = '#ffffff'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'; e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'; e.currentTarget.style.color = '#4F8CFF'; }}
             >
               <span>🔗</span> View in PDF
             </button>
@@ -451,31 +449,33 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
       </div>
 
       {/* Page controls */}
-      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 24px', background: 'transparent', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 24px', background: 'transparent', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
             disabled={pageNumber <= 1}
             onClick={() => { setPageNumber(p => p - 1); setHighlights([]); setMatchedRawItems(null); }}
-            style={{ background: 'none', border: 'none', cursor: pageNumber <= 1 ? 'default' : 'pointer', color: pageNumber <= 1 ? '#3f3f46' : '#a1a1aa', padding: 4 }}
-          ><ChevronLeft size={20} /></button>
-          <span style={{ fontSize: 12, color: '#a1a1aa', fontFamily: 'monospace' }}>Page {pageNumber} of {numPages || '--'}</span>
+            className="mac-btn-secondary"
+            style={{ width: 28, height: 28, padding: 0, borderRadius: 8 }}
+          ><ChevronLeft size={16} /></button>
+          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', fontFamily: 'monospace' }}>Page {pageNumber} / {numPages || '--'}</span>
           <button
             disabled={pageNumber >= numPages}
             onClick={() => { setPageNumber(p => p + 1); setHighlights([]); setMatchedRawItems(null); }}
-            style={{ background: 'none', border: 'none', cursor: pageNumber >= numPages ? 'default' : 'pointer', color: pageNumber >= numPages ? '#3f3f46' : '#a1a1aa', padding: 4 }}
-          ><ChevronRight size={20} /></button>
+            className="mac-btn-secondary"
+            style={{ width: 28, height: 28, padding: 0, borderRadius: 8 }}
+          ><ChevronRight size={16} /></button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button onClick={() => setScale(s => Math.max(0.5, s - 0.2))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#a1a1aa', padding: 6, borderRadius: 4 }}><ZoomOut size={15} /></button>
-          <span style={{ fontSize: 11, color: '#71717a', fontFamily: 'monospace', width: 44, textAlign: 'center' }}>{Math.round(scale * 100)}%</span>
-          <button onClick={() => setScale(s => Math.min(2.5, s + 0.2))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#a1a1aa', padding: 6, borderRadius: 4 }}><ZoomIn size={15} /></button>
+          <button onClick={() => setScale(s => Math.max(0.5, s - 0.2))} className="mac-btn-secondary" style={{ width: 26, height: 26, padding: 0, borderRadius: 6 }}><ZoomOut size={14} /></button>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontFamily: 'monospace', width: 44, textAlign: 'center' }}>{Math.round(scale * 100)}%</span>
+          <button onClick={() => setScale(s => Math.min(2.5, s + 0.2))} className="mac-btn-secondary" style={{ width: 26, height: 26, padding: 0, borderRadius: 6 }}><ZoomIn size={14} /></button>
         </div>
       </div>
 
       {/* PDF viewport area */}
       <div 
         ref={pdfContainerRef}
-        style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', background: '#0a0a0a', display: 'flex', justifyContent: 'center', padding: '24px', position: 'relative' }}
+        style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', background: 'rgba(0,0,0,0.3)', display: 'flex', justifyContent: 'center', padding: '24px', position: 'relative' }}
       >
         <Document
           file={pdfUrl}
@@ -485,7 +485,7 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
               indexPdf(pdf);
             }
           }}
-          loading={<div style={{ color: '#60a5fa', fontSize: 13, marginTop: 80 }}>Loading PDF...</div>}
+          loading={<div style={{ color: '#7B61FF', fontSize: 13.5, fontWeight: 650, marginTop: 80 }} className="animate-pulse">Loading PDF Document...</div>}
         >
           <div style={{ position: 'relative' }} ref={pageWrapperRef}>
             <Page

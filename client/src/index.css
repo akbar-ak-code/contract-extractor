@@ -1,158 +1,159 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
 /* =========================================================
-   GLOBAL SYSTEM LAYOUT
+   GLOBAL RESET & TYPOGRAPHY
    ========================================================= */
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  font-family: 'Manrope', 'Inter', system-ui, -apple-system, sans-serif !important;
   letter-spacing: -0.015em;
-  background-color: #060608;
-  color: #e4e4e7;
+  background-color: #030207;
+  color: #ffffff;
   overflow: hidden;
+  line-height: 1.5;
 }
 
-/* Custom Thin glowing scrollbars */
+/* Modern hidden-scroll scrollbars (only show subtle line when scrolling) */
 ::-webkit-scrollbar { 
-  width: 6px; 
-  height: 6px;
+  width: 5px; 
+  height: 5px;
 }
 ::-webkit-scrollbar-track { 
-  background: rgba(10, 10, 12, 0.3); 
+  background: transparent; 
 }
 ::-webkit-scrollbar-thumb { 
-  background: rgba(255, 255, 255, 0.08); 
+  background: linear-gradient(180deg, rgba(123, 97, 255, 0.3) 0%, rgba(79, 140, 255, 0.3) 100%); 
   border-radius: 99px; 
-  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 ::-webkit-scrollbar-thumb:hover { 
-  background: rgba(99, 102, 241, 0.35); 
-  border-color: rgba(99, 102, 241, 0.5);
+  background: linear-gradient(180deg, #7B61FF 0%, #4F8CFF 100%); 
 }
 
 /* =========================================================
-   GLASSMORPHISM DESIGN UTILITIES
+   macOS SONOMA GLASSMORPHISM SYSTEM
    ========================================================= */
 
-/* Glass Panels (Sidebar, Headers, Asides) */
-.glass-panel {
-  background: rgba(10, 10, 12, 0.6) !important;
-  backdrop-filter: blur(24px) saturate(120%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(120%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4) !important;
+/* Floating layout background panels */
+.mac-glass-panel {
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(30px) saturate(130%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(130%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 
+    0 15px 40px rgba(0, 0, 0, 0.25), 
+    inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+  border-radius: 24px !important;
+  transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1) !important;
 }
 
-/* Glass Cards */
-.glass-card {
-  background: rgba(255, 255, 255, 0.02) !important;
-  backdrop-filter: blur(18px) !important;
-  -webkit-backdrop-filter: blur(18px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 30px rgba(0, 0, 0, 0.25) !important;
-  transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1) !important;
-  border-radius: 16px !important;
-}
-.glass-card:hover {
+/* macOS floating cards */
+.mac-glass-card {
   background: rgba(255, 255, 255, 0.04) !important;
-  border-color: rgba(99, 102, 241, 0.25) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 12px 40px rgba(0, 0, 0, 0.45) !important;
-  transform: translateY(-2px);
+  backdrop-filter: blur(30px) !important;
+  -webkit-backdrop-filter: blur(30px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.15), 
+    inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  border-radius: 20px !important;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+.mac-glass-card:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 
+    0 20px 45px rgba(123, 97, 255, 0.15), 
+    inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+  transform: translateY(-5px) scale(1.015);
 }
 
-/* Glass Inputs & Textareas */
-.glass-input {
-  background: rgba(0, 0, 0, 0.2) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
+/* Glass Input */
+.mac-glass-input {
+  background: rgba(255, 255, 255, 0.03) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-radius: 12px !important;
-  color: #fff !important;
-  padding: 10px 14px !important;
-  font-size: 13.5px !important;
-  font-family: 'Inter', sans-serif !important;
+  color: #ffffff !important;
   outline: none !important;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
   box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.1) !important;
 }
-.glass-input:focus {
-  border-color: rgba(99, 102, 241, 0.5) !important;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15), inset 0 1px 0 rgba(0, 0, 0, 0.1) !important;
-  background: rgba(0, 0, 0, 0.3) !important;
+.mac-glass-input:focus {
+  border-color: rgba(123, 97, 255, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(123, 97, 255, 0.25), inset 0 1px 0 rgba(0, 0, 0, 0.1) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
 }
 
-/* Glass Button primary (Indigo/Purple Gradient) */
-.glass-btn-primary {
-  background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%) !important;
-  color: #fff !important;
+/* Buttons */
+.mac-btn-primary {
+  background: linear-gradient(135deg, #7B61FF 0%, #4F8CFF 100%) !important;
+  color: #ffffff !important;
   border: none !important;
   font-weight: 600 !important;
-  border-radius: 10px !important;
-  padding: 9px 16px !important;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3) !important;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  border-radius: 99px !important;
+  box-shadow: 0 4px 16px rgba(123, 97, 255, 0.35) !important;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
   cursor: pointer !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 6px !important;
 }
-.glass-btn-primary:hover {
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45) !important;
-  transform: translateY(-2px) !important;
+.mac-btn-primary:hover {
+  box-shadow: 0 8px 24px rgba(123, 97, 255, 0.55) !important;
+  transform: translateY(-2px) scale(1.02) !important;
   filter: brightness(1.05) !important;
 }
-.glass-btn-primary:active {
-  transform: translateY(0px) !important;
+.mac-btn-primary:active {
+  transform: translateY(0px) scale(0.98) !important;
 }
 
-/* Glass Button Secondary */
-.glass-btn-secondary {
-  background: rgba(255, 255, 255, 0.03) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  color: #a1a1aa !important;
-  border-radius: 10px !important;
-  padding: 8px 14px !important;
+.mac-btn-secondary {
+  background: rgba(255, 255, 255, 0.04) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: rgba(255, 255, 255, 0.75) !important;
+  border-radius: 99px !important;
   font-weight: 500 !important;
-  transition: all 0.2s ease !important;
+  transition: all 0.25s ease !important;
   cursor: pointer !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 6px !important;
 }
-.glass-btn-secondary:hover {
+.mac-btn-secondary:hover {
   background: rgba(255, 255, 255, 0.08) !important;
-  color: #fff !important;
-  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
   transform: translateY(-1.5px) !important;
 }
-.glass-btn-secondary:active {
+.mac-btn-secondary:active {
   transform: translateY(0px) !important;
 }
 
-/* Glass Button Danger */
-.glass-btn-danger {
-  background: linear-gradient(135deg, #EF4444 0%, #B91C1C 100%) !important;
-  color: #fff !important;
+.mac-btn-danger {
+  background: linear-gradient(135deg, #EF4444 0%, #991B1B 100%) !important;
+  color: #ffffff !important;
   border: none !important;
   font-weight: 600 !important;
-  border-radius: 10px !important;
-  padding: 8px 14px !important;
+  border-radius: 99px !important;
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25) !important;
-  transition: all 0.2s ease !important;
+  transition: all 0.25s ease !important;
   cursor: pointer !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 6px !important;
 }
-.glass-btn-danger:hover {
+.mac-btn-danger:hover {
   box-shadow: 0 6px 18px rgba(239, 68, 68, 0.4) !important;
-  transform: translateY(-1.5px) !important;
+  transform: translateY(-2px) !important;
 }
-.glass-btn-danger:active {
+.mac-btn-danger:active {
   transform: translateY(0px) !important;
 }
 
@@ -209,16 +210,16 @@ body {
 }
 
 .rbc-date-cell.rbc-now a {
-  color: #6366F1 !important;
+  color: #7B61FF !important;
   font-weight: 700 !important;
-  background: rgba(99, 102, 241, 0.15) !important;
+  background: rgba(123, 97, 255, 0.15) !important;
   padding: 3px 7px !important;
   border-radius: 6px !important;
-  box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.3) !important;
+  box-shadow: inset 0 0 0 1px rgba(123, 97, 255, 0.3) !important;
 }
 
 .rbc-day-bg.rbc-today {
-  background-color: rgba(99, 102, 241, 0.03) !important;
+  background-color: rgba(123, 97, 255, 0.03) !important;
 }
 
 .rbc-toolbar {
@@ -257,10 +258,10 @@ body {
 
 .rbc-toolbar button:active,
 .rbc-toolbar button.rbc-active {
-  background: #6366F1 !important;
+  background: #7B61FF !important;
   color: #ffffff !important;
-  border-color: #6366F1 !important;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3) !important;
+  border-color: #7B61FF !important;
+  box-shadow: 0 4px 12px rgba(123, 97, 255, 0.3) !important;
 }
 
 .rbc-toolbar button:focus {
@@ -311,7 +312,7 @@ body {
 }
 
 /* Skeleton Loading Shimmer Keyframes */
-@keyframes shimmer {
+@keyframes shimmer-glass {
   0% {
     background-position: -200% 0;
   }
@@ -319,9 +320,9 @@ body {
     background-position: 200% 0;
   }
 }
-.skeleton-shimmer {
-  background: linear-gradient(90deg, rgba(255,255,255,0.01) 25%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0.01) 75%) !important;
+.skeleton-glass {
+  background: linear-gradient(90deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.02) 75%) !important;
   background-size: 200% 100% !important;
-  animation: shimmer 1.5s infinite linear !important;
-  border-radius: 6px !important;
+  animation: shimmer-glass 1.6s infinite linear !important;
+  border-radius: 8px !important;
 }

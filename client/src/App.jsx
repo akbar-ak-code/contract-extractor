@@ -1,6 +1,7 @@
 // src/App.jsx
 import React, { useState, useRef, useEffect } from 'react';
-import { Calendar as CalendarIcon, FileText, LayoutList, Settings2 } from 'lucide-react';
+import { Calendar as CalendarIcon, FileText, LayoutList, Settings2, Bell, Settings, Sun, Search as SearchIcon, Compass } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 import Sidebar from './components/Sidebar';
 import CalendarView from './components/CalendarView';
@@ -150,123 +151,151 @@ const App = () => {
 
   const tabBtn = (active) => ({
     display: 'flex', alignItems: 'center', gap: 6,
-    padding: '7px 18px', borderRadius: 8, border: '1px solid', cursor: 'pointer',
-    fontSize: 13, fontWeight: 500, transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+    padding: '7px 18px', borderRadius: 99, border: 'none', cursor: 'pointer',
+    fontSize: 12.5, fontWeight: 600, transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
     background: active
-      ? 'rgba(255, 255, 255, 0.08)'
+      ? 'linear-gradient(135deg, #7B61FF 0%, #4F8CFF 100%)'
       : 'transparent',
-    borderColor: active ? 'rgba(255, 255, 255, 0.12)' : 'transparent',
-    color: active ? '#fff' : '#888888',
-    boxShadow: active ? '0 4px 12px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.06)' : 'none',
+    color: active ? '#ffffff' : 'rgba(255, 255, 255, 0.6)',
+    boxShadow: active ? '0 4px 14px rgba(123, 97, 255, 0.35)' : 'none',
   });
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#050508', color: '#e5e5e5', position: 'relative' }}>
+    <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden', background: '#030207', color: '#ffffff', boxSizing: 'border-box' }}>
       
-      {/* Floating blurred blobs in background */}
-      <div style={{ position: 'fixed', top: '-10%', left: '-10%', width: '45%', height: '45%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,102,241,0.08) 0%, rgba(99,102,241,0) 70%)', filter: 'blur(80px)', pointerEvents: 'none', zIndex: 0 }} />
-      <div style={{ position: 'fixed', bottom: '-15%', right: '-15%', width: '55%', height: '55%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.06) 0%, rgba(139,92,246,0) 70%)', filter: 'blur(100px)', pointerEvents: 'none', zIndex: 0 }} />
-      <div style={{ position: 'fixed', top: '35%', left: '45%', width: '35%', height: '35%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(16,185,129,0.03) 0%, rgba(16,185,129,0) 70%)', filter: 'blur(90px)', pointerEvents: 'none', zIndex: 0 }} />
-
-      {/* Left sidebar */}
-      <Sidebar
-        history={history}
-        onNewUpload={() => {
-          setResult(null);
-          setFile(null);
-          setActiveSource(null);
-          setActiveTab('extraction');
-          setDbId(null);
+      {/* Background Animated Gradient Blobs */}
+      <motion.div
+        animate={{
+          x: [0, 40, -20, 0],
+          y: [0, -30, 20, 0],
         }}
-        onLoadPO={loadPastPO}
-        onDeletePO={handleDeletePO}
+        transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+        style={{ position: 'fixed', top: '-10%', left: '-10%', width: '50%', height: '50%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(123,97,255,0.12) 0%, rgba(123,97,255,0) 70%)', filter: 'blur(80px)', pointerEvents: 'none', zIndex: 0 }}
+      />
+      <motion.div
+        animate={{
+          x: [0, -50, 30, 0],
+          y: [0, 30, -40, 0],
+        }}
+        transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }}
+        style={{ position: 'fixed', bottom: '-15%', right: '-15%', width: '60%', height: '60%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(79,140,255,0.08) 0%, rgba(79,140,255,0) 70%)', filter: 'blur(100px)', pointerEvents: 'none', zIndex: 0 }}
       />
 
-      {/* Main content — min-width prevents collapse when right sidebar opens */}
-      <main style={{
-        flex: 1, minWidth: 480,
-        display: 'flex', flexDirection: 'column',
-        overflowY: 'auto', overflowX: 'hidden',
-        background: 'transparent',
-        padding: '28px 40px',
-        zIndex: 1,
-      }}>
-        <header style={{ marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-          <div>
-            <h1 style={{
-              margin: 0, marginBottom: 4, fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em',
-              background: 'linear-gradient(to right, #fff, #a3a3a3)',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            }}>
-              Workspace
-            </h1>
-            <p style={{ margin: 0, fontSize: 12.5, color: '#737373' }}>Enterprise Hybrid Pipeline</p>
-          </div>
+      {/* Main App Frame: Padding to create Apple Floating Layout */}
+      <div style={{ display: 'flex', width: '100%', height: '100%', padding: '24px', boxSizing: 'border-box', gap: '20px', zIndex: 1, position: 'relative' }}>
+        
+        {/* Left Floating Sidebar */}
+        <Sidebar
+          history={history}
+          onNewUpload={() => {
+            setResult(null);
+            setFile(null);
+            setActiveSource(null);
+            setActiveTab('extraction');
+            setDbId(null);
+          }}
+          onLoadPO={loadPastPO}
+          onDeletePO={handleDeletePO}
+        />
 
-          {/* Tab switcher */}
-          <div style={{
-            display: 'flex', gap: 3, borderRadius: 11,
-            border: '1px solid rgba(255,255,255,0.05)',
-            background: 'rgba(255,255,255,0.02)', padding: 4,
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
+        {/* Right Section holding Content */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px', height: '100%', minWidth: 480 }}>
+
+          {/* Main Floating Content Area */}
+          <div className="mac-glass-panel" style={{
+            flex: 1, overflowY: 'auto', padding: '24px 28px',
+            boxSizing: 'border-box', display: 'flex', flexDirection: 'column'
           }}>
-            {TABS.map(({ id, label, Icon }) => (
-              <button key={id} onClick={() => setActiveTab(id)} style={tabBtn(activeTab === id)}>
-                <Icon size={14} /> {label}
-              </button>
-            ))}
+            <header style={{ marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div>
+                <h1 style={{
+                  margin: 0, marginBottom: 4, fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em',
+                  background: 'linear-gradient(to right, #ffffff, rgba(255,255,255,0.6))',
+                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                }}>
+                  Workspace
+                </h1>
+                <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Enterprise Hybrid Pipeline</p>
+              </div>
+
+              {/* Tab switcher Segmented Control */}
+              <div style={{
+                display: 'flex', gap: 3, borderRadius: 99,
+                border: '1px solid rgba(255,255,255,0.12)',
+                background: 'rgba(255,255,255,0.04)', padding: 4,
+                backdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(10px)',
+              }}>
+                {TABS.map(({ id, label, Icon }) => (
+                  <button key={id} onClick={() => setActiveTab(id)} style={tabBtn(activeTab === id)}>
+                    <Icon size={13} /> {label}
+                  </button>
+                ))}
+              </div>
+            </header>
+
+            {/* View container with cross-fade slide transitions */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                  style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+                >
+                  {activeTab === 'calendar' && (
+                    <CalendarView history={history} onSelectEvent={loadPastPO} />
+                  )}
+                  {activeTab === 'all' && (
+                    <AllPOsView
+                      history={history}
+                      onLoadPO={loadPastPO}
+                      onDeletePO={handleDeletePO}
+                    />
+                  )}
+                  {activeTab === 'schema' && (
+                    <SchemaManager
+                      poCount={history.length}
+                    />
+                  )}
+                  {activeTab === 'extraction' && (
+                    <ExtractionView
+                      file={file}
+                      loading={loading}
+                      error={error}
+                      result={result}
+                      fileInputRef={fileInputRef}
+                      handleFileSelection={handleFileSelection}
+                      handleAnalyze={handleAnalyze}
+                      setActiveSource={setActiveSource}
+                      dbId={dbId}
+                      onUpdate={handleFieldUpdate}
+                      customFields={customFields}
+                    />
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </div>
           </div>
-        </header>
-
-        <div style={{ flex: 1 }}>
-          {activeTab === 'calendar' && (
-            <CalendarView history={history} onSelectEvent={loadPastPO} />
-          )}
-          {activeTab === 'all' && (
-            <AllPOsView
-              history={history}
-              onLoadPO={loadPastPO}
-              onDeletePO={handleDeletePO}
-            />
-          )}
-          {activeTab === 'schema' && (
-            <SchemaManager
-              poCount={history.length}
-            />
-          )}
-          {activeTab === 'extraction' && (
-            <ExtractionView
-              file={file}
-              loading={loading}
-              error={error}
-              result={result}
-              fileInputRef={fileInputRef}
-              handleFileSelection={handleFileSelection}
-              handleAnalyze={handleAnalyze}
-              setActiveSource={setActiveSource}
-              dbId={dbId}
-              onUpdate={handleFieldUpdate}
-              customFields={customFields}
-            />
-          )}
         </div>
-      </main>
+      </div>
 
-      {/* Right source sidebar — fixed overlay, never compresses main */}
+      {/* Right source sidebar overlay */}
       {activeSource && dbId && (
         <>
           <div
             onClick={() => setActiveSource(null)}
             style={{
               position: 'fixed', inset: 0, zIndex: 40,
-              background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)',
-              animation: 'fadeIn 0.2s ease',
+              background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)',
+              animation: 'fadeIn 0.25s ease',
             }}
           />
           <div style={{
-            position: 'fixed', top: 0, right: 0, bottom: 0,
-            zIndex: 50, width: 600,
+            position: 'fixed', top: '24px', right: '24px', bottom: '24px',
+            zIndex: 50, width: '600px',
             display: 'flex', flexDirection: 'column',
           }}>
             <SourceSidebar

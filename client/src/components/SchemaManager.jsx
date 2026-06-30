@@ -1,21 +1,22 @@
 // src/components/SchemaManager.jsx
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Trash2, Edit2, Check, X, RefreshCw, Sparkles,
-  AlertTriangle, Tag, FileText, Info, ChevronDown, ChevronUp, Layers
+  AlertTriangle, Tag, Info, ChevronDown, ChevronUp, Layers
 } from 'lucide-react';
 
 // ── Colours / tokens ──────────────────────────────────────────────────────
 const C = {
   bg:      'transparent',
-  card:    'rgba(255,255,255,0.02)',
-  border:  'rgba(255,255,255,0.08)',
-  borderH: 'rgba(99,102,241,0.25)',
-  text:    '#e4e4e7',
-  muted:   '#888888',
-  faint:   '#52525b',
-  blue:    '#6366F1',
-  blueB:   'rgba(99,102,241,0.1)',
+  card:    'rgba(255,255,255,0.04)',
+  border:  'rgba(255,255,255,0.1)',
+  borderH: 'rgba(123,97,255,0.25)',
+  text:    '#ffffff',
+  muted:   'rgba(255,255,255,0.65)',
+  faint:   'rgba(255,255,255,0.4)',
+  blue:    '#4F8CFF',
+  blueB:   'rgba(79,140,255,0.1)',
   green:   '#10b981',
   greenB:  'rgba(16,185,129,0.1)',
   red:     '#ef4444',
@@ -39,28 +40,29 @@ const BUILT_IN = [
 // ── Small reusable input ──────────────────────────────────────────────────
 const Field = ({ label, value, onChange, placeholder, multiline, hint }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-    <label style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888888' }}>
+    <label style={{ fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.muted }}>
       {label}
     </label>
     {multiline ? (
       <textarea
         value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
         rows={3}
-        className="glass-input"
+        className="mac-glass-input"
         style={{
-          resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box', width: '100%'
+          resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box', width: '100%',
+          padding: '10px 14px', fontSize: 13.5
         }}
       />
     ) : (
       <input
         value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        className="glass-input"
+        className="mac-glass-input"
         style={{
-          boxSizing: 'border-box', width: '100%'
+          boxSizing: 'border-box', width: '100%', padding: '10px 14px', fontSize: 13.5
         }}
       />
     )}
-    {hint && <p style={{ margin: 0, fontSize: 11, color: '#52525b', lineHeight: 1.5 }}>{hint}</p>}
+    {hint && <p style={{ margin: 0, fontSize: 11, color: C.faint, lineHeight: 1.5 }}>{hint}</p>}
   </div>
 );
 
@@ -69,12 +71,12 @@ const Toast = ({ msg, type }) => {
   if (!msg) return null;
   const icon = type === 'error' ? '❌' : '✅';
   return (
-    <div className="glass-panel animate-in fade-in slide-in-from-bottom duration-300" style={{
+    <div className="mac-glass-panel animate-in fade-in slide-in-from-bottom duration-300" style={{
       position: 'fixed', bottom: 28, right: 28, zIndex: 999,
-      borderRadius: 12,
-      padding: '12px 20px', color: '#ffffff', fontSize: 13, fontWeight: 500,
+      borderRadius: 16,
+      padding: '12px 20px', color: '#ffffff', fontSize: 13.5, fontWeight: 600,
       display: 'flex', alignItems: 'center', gap: 8,
-      boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+      boxShadow: '0 15px 40px rgba(0,0,0,0.4)',
       border: `1px solid ${type === 'error' ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'}`,
     }}>
       <span>{icon}</span>
@@ -108,28 +110,34 @@ const CustomFieldCard = ({ field, onDelete, onUpdate, poCount }) => {
   };
 
   return (
-    <div className="glass-card" style={{
-      overflow: 'hidden',
-      borderColor: editing ? 'rgba(99, 102, 241, 0.35)' : 'rgba(255, 255, 255, 0.08)',
-      boxShadow: editing ? '0 0 0 3px rgba(99, 102, 241, 0.08)' : 'none',
-    }}>
+    <motion.div
+      layout
+      className="mac-glass-card"
+      style={{
+        overflow: 'hidden',
+        border: `1px solid ${editing ? 'rgba(123, 97, 255, 0.45)' : C.border}`,
+        boxShadow: editing ? '0 0 0 4px rgba(123, 97, 255, 0.08)' : '0 10px 30px rgba(0, 0, 0, 0.15)',
+        borderRadius: 20
+      }}
+    >
       {/* Card header */}
       <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{
           flexShrink: 0, width: 32, height: 32, borderRadius: 8,
-          background: C.blueB, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: 'inset 0 0 0 1px rgba(59,130,246,0.2)',
+          background: 'linear-gradient(135deg, rgba(123,97,255,0.15) 0%, rgba(79,140,255,0.15) 100%)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          border: '1px solid rgba(123,97,255,0.25)'
         }}>
-          <Tag size={14} color={C.blue} />
+          <Tag size={14} color="#7B61FF" />
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
           {editing ? (
             <input value={name} onChange={e => setName(e.target.value)}
-              className="glass-input"
-              style={{ padding: '4px 8px', fontSize: 14, outline: 'none', fontWeight: 600, width: '100%', boxSizing: 'border-box', minHeight: 'unset' }} />
+              className="mac-glass-input"
+              style={{ padding: '6px 10px', fontSize: 13.5, fontWeight: 700, width: '100%', boxSizing: 'border-box', minHeight: 'unset' }} />
           ) : (
-            <div style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{field.name}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{field.name}</div>
           )}
           <div style={{ fontSize: 11, color: C.faint, fontFamily: 'monospace', marginTop: 2 }}>{field.key}</div>
         </div>
@@ -138,39 +146,39 @@ const CustomFieldCard = ({ field, onDelete, onUpdate, poCount }) => {
         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
           {editing ? (
             <>
-              <button onClick={handleSave} disabled={saving} title="Save"
-                style={{ width: 30, height: 30, borderRadius: 7, background: C.greenB, border: `1px solid rgba(52,211,153,0.3)`, color: C.green, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <button onClick={handleSave} disabled={saving} title="Save" className="mac-btn-primary"
+                style={{ width: 30, height: 30, padding: 0, borderRadius: 8, background: C.greenB, border: `1px solid rgba(16,185,129,0.3)`, color: C.green }}>
                 {saving ? <RefreshCw size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={13} />}
               </button>
-              <button onClick={handleCancel} title="Cancel"
-                style={{ width: 30, height: 30, borderRadius: 7, background: C.redB, border: `1px solid rgba(239,68,68,0.3)`, color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <button onClick={handleCancel} title="Cancel" className="mac-btn-secondary"
+                style={{ width: 30, height: 30, padding: 0, borderRadius: 8, color: C.red, borderColor: 'rgba(239,68,68,0.2)' }}>
                 <X size={13} />
               </button>
             </>
           ) : (
             <>
-              <button onClick={() => setExpanded(e => !e)} title={expanded ? 'Collapse' : 'Expand'}
-                style={{ width: 30, height: 30, borderRadius: 7, background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <button onClick={() => setExpanded(e => !e)} title={expanded ? 'Collapse' : 'Expand'} className="mac-btn-secondary"
+                style={{ width: 30, height: 30, padding: 0, borderRadius: 8 }}>
                 {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
               </button>
-              <button onClick={() => { setEditing(true); setExpanded(true); }} title="Edit"
-                style={{ width: 30, height: 30, borderRadius: 7, background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                onMouseEnter={e => { e.currentTarget.style.background = C.blueB; e.currentTarget.style.color = C.blue; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = C.muted; }}>
+              <button onClick={() => { setEditing(true); setExpanded(true); }} title="Edit" className="mac-btn-secondary"
+                style={{ width: 30, height: 30, padding: 0, borderRadius: 8 }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(123,97,255,0.4)'; e.currentTarget.style.color = '#7B61FF'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.75)'; }}>
                 <Edit2 size={13} />
               </button>
               {confirmDel ? (
                 <>
-                  <button onClick={() => onDelete(field.key)}
-                    style={{ padding: '0 10px', height: 30, borderRadius: 7, background: C.redB, border: `1px solid rgba(239,68,68,0.4)`, color: C.red, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>Delete</button>
-                  <button onClick={() => setConfirmDel(false)}
-                    style={{ padding: '0 10px', height: 30, borderRadius: 7, background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', fontSize: 11 }}>Cancel</button>
+                  <button onClick={() => onDelete(field.key)} className="mac-btn-danger"
+                    style={{ padding: '0 12px', height: 30, borderRadius: 8, fontSize: 11, fontWeight: 700 }}>Delete</button>
+                  <button onClick={() => setConfirmDel(false)} className="mac-btn-secondary"
+                    style={{ padding: '0 12px', height: 30, borderRadius: 8, fontSize: 11 }}>Cancel</button>
                 </>
               ) : (
-                <button onClick={() => setConfirmDel(true)} title="Delete"
-                  style={{ width: 30, height: 30, borderRadius: 7, background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = C.redB; e.currentTarget.style.color = C.red; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = C.muted; }}>
+                <button onClick={() => setConfirmDel(true)} title="Delete" className="mac-btn-secondary"
+                  style={{ width: 30, height: 30, padding: 0, borderRadius: 8 }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; e.currentTarget.style.color = C.red; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.75)'; }}>
                   <Trash2 size={13} />
                 </button>
               )}
@@ -181,7 +189,7 @@ const CustomFieldCard = ({ field, onDelete, onUpdate, poCount }) => {
 
       {/* Expanded / edit body */}
       {expanded && (
-        <div style={{ borderTop: `1px solid ${C.border}`, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ borderTop: `1px solid rgba(255,255,255,0.06)`, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <Field label="Extraction Description / Prompt"
             value={desc} onChange={setDesc} multiline
             placeholder="Describe what this field contains so Gemini knows what to find…"
@@ -192,43 +200,43 @@ const CustomFieldCard = ({ field, onDelete, onUpdate, poCount }) => {
             placeholder="e.g. '24 months from date of completion'"
             hint="Helps Gemini understand the expected format."
           />
-          {editing && (
-            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
-              <input type="checkbox" checked={rerun} onChange={e => setRerun(e.target.checked)}
-                style={{ marginTop: 2, accentColor: C.blue, width: 14, height: 14, flexShrink: 0 }} />
-              <span style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.5 }}>
-                <span style={{ color: C.text, fontWeight: 500 }}>Re-run extraction</span> across all {poCount} stored POs using the updated description
-                <span style={{ display: 'block', fontSize: 11, color: C.faint, marginTop: 2 }}>
-                  This calls Gemini once per PO and may take a moment.
-                </span>
-              </span>
-            </label>
-          )}
-          {!editing && (
-            <div style={{ fontSize: 11.5, color: C.faint }}>
-              Created {new Date(field.created_at).toLocaleDateString()} · Active on all POs
+
+          {editing && poCount > 0 && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '10px 14px', borderRadius: 10, background: 'rgba(245,158,11,0.08)',
+              border: '1px solid rgba(245,158,11,0.2)', marginTop: 4
+            }}>
+              <input type="checkbox" id="rerun-chk" checked={rerun} onChange={e => setRerun(e.target.checked)}
+                style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#7B61FF' }} />
+              <label htmlFor="rerun-chk" style={{ fontSize: 12, color: C.orange, fontWeight: 600, cursor: 'pointer' }}>
+                Re-run extraction immediately on all uploaded POs ({poCount})
+              </label>
             </div>
           )}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 
-// ── Add field form ────────────────────────────────────────────────────────
+// ── Add field form card ───────────────────────────────────────────────────
 const AddFieldForm = ({ onAdd, onCancel }) => {
-  const [name,    setName]    = useState('');
-  const [key,     setKey]     = useState('');
-  const [desc,    setDesc]    = useState('');
+  const [name, setName]       = useState('');
+  const [key, setKey]         = useState('');
+  const [desc, setDesc]       = useState('');
   const [example, setExample] = useState('');
-  const [saving,  setSaving]  = useState(false);
   const [keyManual, setKeyManual] = useState(false);
+  const [saving, setSaving]   = useState(false);
 
-  // Auto-derive key from name unless manually overridden
-  const handleNameChange = (v) => {
-    setName(v);
+  const handleNameChange = (val) => {
+    setName(val);
     if (!keyManual) {
-      setKey(v.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, ''));
+      const autoKey = val.toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .replace(/\s+/g, '_')
+        .substring(0, 30);
+      setKey(autoKey);
     }
   };
 
@@ -239,25 +247,27 @@ const AddFieldForm = ({ onAdd, onCancel }) => {
     setSaving(false);
   };
 
+  const valid = name.trim() && key.trim() && desc.trim();
+
   return (
-    <div className="glass-card" style={{ border: `1px solid rgba(99,102,241,0.35)`, padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 16, boxShadow: '0 0 0 4px rgba(99,102,241,0.07)' }}>
+    <div className="mac-glass-card animate-in fade-in duration-300" style={{ border: `1px solid rgba(123,97,255,0.35)`, padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 16, boxShadow: '0 0 0 4px rgba(123,97,255,0.07)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 2 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 7, background: C.blueB, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Plus size={14} color={C.blue} />
+        <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, rgba(123,97,255,0.15) 0%, rgba(79,140,255,0.15) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(123,97,255,0.25)' }}>
+          <Plus size={14} color="#7B61FF" />
         </div>
-        <span style={{ fontSize: 14, fontWeight: 600, color: C.text }}>New Custom Field</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: '#ffffff' }}>New Custom Field</span>
       </div>
 
       <Field label="Field Name" value={name} onChange={handleNameChange} placeholder="e.g. Warranty Period" />
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-        <label style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: C.muted }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <label style={{ fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.muted }}>
           Field Key <span style={{ color: C.faint, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(auto-generated, must be unique)</span>
         </label>
         <input value={key}
           onChange={e => { setKey(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')); setKeyManual(true); }}
           placeholder="warranty_period"
-          className="glass-input"
+          className="mac-glass-input"
           style={{ fontFamily: 'monospace', boxSizing: 'border-box', width: '100%', color: '#a78bfa', minHeight: 'unset', padding: '8px 12px' }}
         />
       </div>
@@ -273,11 +283,11 @@ const AddFieldForm = ({ onAdd, onCancel }) => {
       />
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={onCancel} className="glass-btn-secondary" style={{ padding: '8px 18px', fontSize: 13 }}>
+        <button onClick={onCancel} className="mac-btn-secondary" style={{ padding: '8px 18px', fontSize: 13 }}>
           Cancel
         </button>
         <button onClick={handleSubmit} disabled={!valid || saving}
-          className={valid ? "glass-btn-primary" : ""}
+          className={valid ? "mac-btn-primary" : ""}
           style={{
             padding: '8px 22px', fontSize: 13, fontWeight: 600, cursor: valid && !saving ? 'pointer' : 'default',
             display: 'flex', alignItems: 'center', gap: 7,
@@ -353,19 +363,19 @@ const SchemaManager = ({ poCount }) => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 28, flex: 1 }}>
       <Toast msg={toast.msg} type={toast.type} />
 
       {/* Page header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
         <div>
-          <h2 style={{ margin: 0, marginBottom: 6, fontSize: 18, fontWeight: 700, color: C.text }}>Schema Management</h2>
+          <h2 style={{ margin: 0, marginBottom: 6, fontSize: 18, fontWeight: 800, color: '#ffffff' }}>Schema Management</h2>
           <p style={{ margin: 0, fontSize: 13, color: C.muted, lineHeight: 1.6, maxWidth: 520 }}>
             Extend the extraction schema with custom fields. Gemini will extract them from every PO automatically — no code changes needed.
           </p>
         </div>
         <button onClick={() => setShowAdd(s => !s)}
-          className={showAdd ? "glass-btn-secondary" : "glass-btn-primary"}
+          className={showAdd ? "mac-btn-secondary" : "mac-btn-primary"}
           style={{
             flexShrink: 0, padding: '9px 18px', fontSize: 13, fontWeight: 600,
           }}>
@@ -379,23 +389,23 @@ const SchemaManager = ({ poCount }) => {
 
       {/* Built-in fields (read-only) */}
       <section>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
           <Layers size={14} color={C.faint} />
           <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: C.faint }}>
             Built-in Fields ({BUILT_IN.length})
           </span>
           <span style={{ fontSize: 11, color: C.faint }}>— protected, cannot be deleted</span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
           {BUILT_IN.map(f => (
-            <div key={f.key} className="glass-card" style={{
+            <div key={f.key} className="mac-glass-card" style={{
               padding: '10px 14px',
               display: 'flex', alignItems: 'center', gap: 8,
-              borderRadius: 10,
+              borderRadius: 12,
             }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.faint, flexShrink: 0 }} />
               <div>
-                <div style={{ fontSize: 12.5, fontWeight: 500, color: C.muted }}>{f.name}</div>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: C.muted }}>{f.name}</div>
                 <div style={{ fontSize: 10, color: C.faint, fontFamily: 'monospace', marginTop: 1 }}>{f.key}</div>
               </div>
             </div>
@@ -406,29 +416,29 @@ const SchemaManager = ({ poCount }) => {
       {/* Custom fields */}
       <section>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-          <Tag size={14} color={C.blue} />
-          <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: C.blue }}>
+          <Tag size={14} color="#7B61FF" />
+          <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#7B61FF' }}>
             Custom Fields ({customFields.length})
           </span>
         </div>
 
         {loading && (
-          <div style={{ textAlign: 'center', padding: 40, color: C.faint, fontSize: 13 }}>Loading schema…</div>
+          <div style={{ textAlign: 'center', padding: 40, color: C.faint, fontSize: 13.5 }}>Loading schema…</div>
         )}
 
         {!loading && customFields.length === 0 && !showAdd && (
-          <div style={{ borderRadius: 12, border: `2px dashed ${C.border}`, padding: '40px 24px', textAlign: 'center' }}>
+          <div className="mac-glass-card" style={{ padding: '40px 24px', textAlign: 'center', borderStyle: 'dashed' }}>
             <div style={{ width: 44, height: 44, borderRadius: 12, background: C.blueB, margin: '0 auto 14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Plus size={20} color={C.blue} />
             </div>
-            <div style={{ fontSize: 14, fontWeight: 500, color: C.muted, marginBottom: 6 }}>No custom fields yet</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: C.muted, marginBottom: 6 }}>No custom fields yet</div>
             <div style={{ fontSize: 12.5, color: C.faint, lineHeight: 1.6 }}>
               Add a field above — Gemini will extract it<br />from all your existing and future POs automatically.
             </div>
           </div>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <motion.div layout style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {customFields.map(f => (
             <CustomFieldCard
               key={f.key} field={f}
@@ -437,12 +447,11 @@ const SchemaManager = ({ poCount }) => {
               onUpdate={handleUpdate}
             />
           ))}
-        </div>
+        </motion.div>
       </section>
 
       <style>{`
         @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: translateY(0) } }
       `}</style>
     </div>
   );

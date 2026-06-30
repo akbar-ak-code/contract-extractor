@@ -1,39 +1,37 @@
 // src/components/Sidebar.jsx
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Clock, Plus, Trash2, ChevronLeft, ChevronRight, UploadCloud } from 'lucide-react';
 import { parseAiDate, getDaysLeft, getDeadlineColor } from '../utils/helpers.js';
 
-// Individual card with its own hover state for trash visibility
+// Individual card with hover state and Framer Motion lift
 const DeadlineCard = ({ po, onLoadPO, onDeletePO }) => {
   const [hovered, setHovered] = useState(false);
   const color = getDeadlineColor(po.daysLeft);
 
   return (
-    <div
+    <motion.div
       onClick={() => onLoadPO(po.id)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="glass-card"
+      whileHover={{ y: -3, scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      className="mac-glass-card"
       style={{
-        padding: '11px 10px 11px 16px', borderRadius: 10,
+        padding: '11px 12px 11px 14px', borderRadius: 12,
         cursor: 'pointer', position: 'relative', overflow: 'hidden',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        borderLeft: `3px solid ${color}`,
       }}
     >
-      {/* Left color accent bar */}
-      <div style={{
-        position: 'absolute', left: 0, top: 0, bottom: 0, width: 3,
-        background: color, borderRadius: '10px 0 0 10px',
-      }} />
-
       <div style={{ flex: 1, minWidth: 0, paddingLeft: 4 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: '#e0e0e0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {po.po_number || po.filename}
         </div>
-        <div style={{ fontSize: 11, marginTop: 3, fontWeight: 600, color }}>
+        <div style={{ fontSize: 11, marginTop: 3, fontWeight: 700, color }}>
           {po.daysLeft < 0
-            ? `Expired ${Math.abs(po.daysLeft)} days ago`
-            : `Expires in ${po.daysLeft} days`}
+            ? `Expired ${Math.abs(po.daysLeft)}d ago`
+            : `Expires in ${po.daysLeft}d`}
         </div>
       </div>
 
@@ -44,15 +42,15 @@ const DeadlineCard = ({ po, onLoadPO, onDeletePO }) => {
           background: 'none', border: 'none', cursor: 'pointer',
           padding: 6, borderRadius: 6, flexShrink: 0,
           opacity: hovered ? 1 : 0,
-          color: '#71717a', transition: 'opacity 0.15s, color 0.15s, background 0.15s',
+          color: 'rgba(255,255,255,0.4)', transition: 'all 0.2s',
           display: 'flex', alignItems: 'center',
         }}
         onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; }}
-        onMouseLeave={e => { e.currentTarget.style.color = '#71717a'; e.currentTarget.style.background = 'none'; }}
+        onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; e.currentTarget.style.background = 'none'; }}
       >
-        <Trash2 size={14} />
+        <Trash2 size={13} />
       </button>
-    </div>
+    </motion.div>
   );
 };
 
@@ -69,177 +67,124 @@ const Sidebar = ({ history, onNewUpload, onLoadPO, onDeletePO }) => {
     .filter(Boolean)
     .sort((a, b) => a.daysLeft - b.daysLeft);
 
-  // Urgent = expired OR ≤30 days left
   const urgentCount = upcomingDeadlines.filter(po => po.daysLeft <= 30).length;
 
-  // ── COLLAPSED: slim icon strip ──────────────────────────────────────────
-  if (collapsed) {
-    return (
-      <aside className="glass-panel" style={{
-        width: 56, flexShrink: 0, height: '100%',
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        paddingTop: 16, gap: 10, overflow: 'hidden',
-        borderTop: 'none', borderBottom: 'none', borderLeft: 'none',
-        borderRight: '1px solid rgba(255, 255, 255, 0.08)'
-      }}>
-        {/* Expand */}
-        <button
-          onClick={() => setCollapsed(false)}
-          title="Expand sidebar"
-          style={{
-            width: 34, height: 34, borderRadius: 9,
-            background: 'rgba(92,156,230,0.1)', border: '1px solid rgba(92,156,230,0.2)',
-            color: '#5c9ce6', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-          }}
-        >
-          <ChevronRight size={15} />
-        </button>
-
-        {/* Clock + urgent badge */}
-        <div style={{ position: 'relative', flexShrink: 0 }}>
-          <div style={{
-            width: 34, height: 34, borderRadius: 9,
-            background: 'rgba(92,156,230,0.07)', border: '1px solid rgba(92,156,230,0.1)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5c9ce6',
-          }}>
-            <Clock size={15} />
-          </div>
-          {urgentCount > 0 && (
-            <span style={{
-              position: 'absolute', top: -4, right: -4,
-              minWidth: 15, height: 15, borderRadius: 8,
-              background: '#ef4444', color: '#fff',
-              fontSize: 9, fontWeight: 700, lineHeight: '15px',
-              textAlign: 'center', padding: '0 3px',
-              boxShadow: '0 0 0 2px #141414',
-            }}>
-              {urgentCount > 9 ? '9+' : urgentCount}
-            </span>
-          )}
-        </div>
-
-        {/* New PO (icon only) */}
-        <button
-          onClick={onNewUpload}
-          title="New PO Upload"
-          className="glass-btn-primary"
-          style={{
-            width: 34, height: 34, borderRadius: 9, 
-            flexShrink: 0,
-            padding: 0,
-          }}
-        >
-          <Plus size={16} strokeWidth={2.5} />
-        </button>
-
-        {/* Dot indicators */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 7, alignItems: 'center', overflowY: 'auto', flex: 1, paddingBottom: 12 }}>
-          {upcomingDeadlines.slice(0, 14).map(po => (
-            <button
-              key={po.id}
-              onClick={() => onLoadPO(po.id)}
-              title={`${po.po_number || po.filename} · ${po.daysLeft < 0 ? `Expired ${Math.abs(po.daysLeft)}d ago` : `${po.daysLeft}d left`}`}
-              style={{
-                width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                background: getDeadlineColor(po.daysLeft),
-                border: 'none', cursor: 'pointer', padding: 0,
-                boxShadow: `0 0 6px ${getDeadlineColor(po.daysLeft)}70`,
-              }}
-            />
-          ))}
-        </div>
-      </aside>
-    );
-  }
-
-  // ── EXPANDED ────────────────────────────────────────────────────────────
   return (
-    <aside className="glass-panel" style={{
-      width: 280, flexShrink: 0, height: '100%',
-      display: 'flex', flexDirection: 'column', overflow: 'hidden',
-      borderTop: 'none', borderBottom: 'none', borderLeft: 'none',
-      borderRight: '1px solid rgba(255, 255, 255, 0.08)'
-    }}>
-      {/* Top section (non-scrolling) */}
-      <div style={{ padding: '18px 14px 14px', flexShrink: 0 }}>
-
-        {/* Header row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <h2 style={{ margin: 0, fontSize: 14.5, fontWeight: 600, color: '#e0e0e0', display: 'flex', alignItems: 'center', gap: 7 }}>
-            <Clock size={16} color="#5c9ce6" />
-            Upcoming Expiries
-            {urgentCount > 0 && (
-              <span style={{
-                minWidth: 18, height: 18, borderRadius: 9,
-                background: '#ef4444', color: '#fff',
-                fontSize: 10, fontWeight: 700,
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px',
-              }}>
-                {urgentCount > 99 ? '99+' : urgentCount}
-              </span>
-            )}
-          </h2>
+    <motion.aside
+      className="mac-glass-panel"
+      animate={{ width: collapsed ? 72 : 280 }}
+      transition={{ duration: 0.3, ease: [0.25, 0.8, 0.25, 1] }}
+      style={{
+        flexShrink: 0, height: '100%',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
+      }}
+    >
+      {/* Header Section */}
+      <div style={{ 
+        padding: collapsed ? '18px 0 14px' : '18px 16px 14px', 
+        display: 'flex', flexDirection: 'column', 
+        alignItems: collapsed ? 'center' : 'stretch', 
+        flexShrink: 0, gap: 14 
+      }}>
+        
+        {/* Toggle Collapse */}
+        <div style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', boxSizing: 'border-box', padding: collapsed ? 0 : '0 4px' }}>
+          {!collapsed && (
+            <h2 style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 7 }}>
+              <Clock size={16} className="text-indigo-400" />
+              Upcoming Expiries
+              {urgentCount > 0 && (
+                <span style={{
+                  minWidth: 18, height: 18, borderRadius: 9,
+                  background: '#ef4444', color: '#fff',
+                  fontSize: 10, fontWeight: 700,
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px',
+                  boxShadow: '0 2px 6px rgba(239, 68, 68, 0.3)'
+                }}>
+                  {urgentCount > 99 ? '99+' : urgentCount}
+                </span>
+              )}
+            </h2>
+          )}
 
           <button
-            onClick={() => setCollapsed(true)}
-            title="Collapse"
+            onClick={() => setCollapsed(!collapsed)}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="mac-btn-secondary"
             style={{
-              width: 26, height: 26, borderRadius: 6, flexShrink: 0,
-              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)',
-              color: '#71717a', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 26, height: 26, padding: 0, borderRadius: 8,
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(92,156,230,0.12)'; e.currentTarget.style.color = '#5c9ce6'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#71717a'; }}
           >
-            <ChevronLeft size={13} />
+            {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </button>
         </div>
 
-        {/* New PO button */}
+        {/* New PO Action */}
         <button
           onClick={onNewUpload}
-          className="glass-btn-primary"
+          className="mac-btn-primary"
           style={{
-            width: '100%', padding: '9px 14px',
-            borderRadius: 10,
+            width: collapsed ? 36 : '100%',
+            height: collapsed ? 36 : 'auto',
+            padding: collapsed ? 0 : '10px 14px',
+            borderRadius: collapsed ? 99 : 12,
+            fontSize: 13,
+            boxSizing: 'border-box'
           }}
+          title="New PO Upload"
         >
-          <Plus size={15} strokeWidth={2.5} /> New PO Upload
+          <Plus size={16} strokeWidth={2.5} />
+          {!collapsed && <span>New PO Upload</span>}
         </button>
       </div>
 
-      {/* Scrollable list */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px 14px' }}>
-
-        {/* Empty state */}
-        {upcomingDeadlines.length === 0 && (
-          <div style={{ padding: '36px 12px', textAlign: 'center' }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: 12, margin: '0 auto 12px',
-              background: 'rgba(92,156,230,0.07)', border: '1px solid rgba(92,156,230,0.12)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <UploadCloud size={20} color="#5c9ce6" />
+      {/* Expiry Cards list */}
+      <div style={{ 
+        flex: 1, overflowY: 'auto', 
+        padding: collapsed ? '0 12px 14px' : '0 16px 16px', 
+        display: 'flex', flexDirection: 'column', gap: 8 
+      }}>
+        {upcomingDeadlines.length === 0 ? (
+          !collapsed && (
+            <div style={{ padding: '36px 12px', textAlign: 'center' }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 12, margin: '0 auto 12px',
+                background: 'rgba(123, 97, 255, 0.1)', border: '1px solid rgba(123, 97, 255, 0.2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <UploadCloud size={20} color="#7B61FF" />
+              </div>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: 'rgba(255, 255, 255, 0.5)', lineHeight: 1.5 }}>
+                No exiries detected
+              </div>
+              <div style={{ fontSize: 11, color: 'rgba(255, 255, 255, 0.35)', marginTop: 5, lineHeight: 1.7 }}>
+                Upload a PO, or manually<br />edit the Lapse / Expiry
+              </div>
             </div>
-            <div style={{ fontSize: 12.5, fontWeight: 500, color: '#52525b', lineHeight: 1.5 }}>
-              No expiry dates detected
-            </div>
-            <div style={{ fontSize: 11, color: '#3f3f46', marginTop: 5, lineHeight: 1.7 }}>
-              Upload a PO, or manually<br />edit the Lapse / Expiry field
-            </div>
-          </div>
+          )
+        ) : (
+          upcomingDeadlines.map(po => (
+            collapsed ? (
+              <motion.button
+                key={po.id}
+                onClick={() => onLoadPO(po.id)}
+                whileHover={{ scale: 1.25 }}
+                title={`${po.po_number || po.filename} · ${po.daysLeft < 0 ? `Expired ${Math.abs(po.daysLeft)}d ago` : `${po.daysLeft}d left`}`}
+                style={{
+                  width: 12, height: 12, borderRadius: '50%', flexShrink: 0,
+                  background: getDeadlineColor(po.daysLeft),
+                  border: 'none', cursor: 'pointer', padding: 0, margin: '6px auto',
+                  boxShadow: `0 0 8px ${getDeadlineColor(po.daysLeft)}`,
+                }}
+              />
+            ) : (
+              <DeadlineCard key={po.id} po={po} onLoadPO={onLoadPO} onDeletePO={onDeletePO} />
+            )
+          ))
         )}
-
-        {/* Cards */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          {upcomingDeadlines.map(po => (
-            <DeadlineCard key={po.id} po={po} onLoadPO={onLoadPO} onDeletePO={onDeletePO} />
-          ))}
-        </div>
       </div>
-    </aside>
+    </motion.aside>
   );
 };
 
