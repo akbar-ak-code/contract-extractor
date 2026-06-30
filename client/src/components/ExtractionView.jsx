@@ -412,8 +412,8 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
                     </div>
                     {an.page && (
                       <button
-                        onClick={() => setActiveSource({ label: an.type, quote: an.description, page: an.page })}
-                        title="Jump to page (anomalies are an AI assessment, not a verbatim quote, so the exact text may not highlight)"
+                        onClick={() => setActiveSource({ label: an.type, quote: an.source_clause || an.description, page: an.page })}
+                        title="View Source"
                         className="p-1 rounded bg-white/[0.03] border border-white/[0.06] text-zinc-500 hover:text-blue-400 hover:border-blue-500/40 transition-colors shrink-0"
                       >
                         <Hash size={11} />

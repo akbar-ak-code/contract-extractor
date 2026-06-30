@@ -254,7 +254,7 @@ Output ONLY valid JSON with no markdown formatting:
     }
   ],
   "anomalies": [
-    {"type": "", "description": "", "page": 0}
+    {"type": "", "description": "", "page": 0, "source_clause": ""}
   ]
 }
 
@@ -264,6 +264,8 @@ RULES:
 - Boilerplate sections (Supplier Code of Conduct, GST compliance, Labour Law) contain no deadlines. Skip them.
 - If a clause is blank or says "NA", note it as an anomaly. Do not infer content.
 - Handwritten annotations are valid contract content. Extract and cite them.
+- Every anomaly's "source_clause" must be the exact literal text from the document (the blank
+  heading, the conflicting sentence, etc.) - never a paraphrase or summary of "description".
 
 Document Text:
 {combined_context}
@@ -305,9 +307,15 @@ def _run_deep_analysis(combined_context: str) -> dict:
     anomaly_schema = types.Schema(
         type=types.Type.OBJECT,
         properties={
-            "type":        types.Schema(type=types.Type.STRING),
-            "description": types.Schema(type=types.Type.STRING),
-            "page":        types.Schema(type=types.Type.INTEGER),
+            "type":          types.Schema(type=types.Type.STRING),
+            "description":   types.Schema(type=types.Type.STRING),
+            "page":          types.Schema(type=types.Type.INTEGER),
+            "source_clause": types.Schema(
+                type=types.Type.STRING,
+                description="Exact literal text from the document that triggered this anomaly "
+                            "(e.g. the blank clause heading, the conflicting sentence, the redacted "
+                            "value). Copied character-for-character, not a paraphrase of 'description'."
+            ),
         }
     )
     metadata_schema = types.Schema(
