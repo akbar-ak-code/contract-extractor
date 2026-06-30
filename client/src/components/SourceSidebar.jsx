@@ -43,9 +43,12 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
         const found = data.matches || [];
         setMatches(found);
         setActiveMatchIdx(0);
-        setPageNumber(found.length > 0 ? found[0].page : (data.page || 1));
+        // activeSource.page is an optional direct hint (e.g. anomalies, which only have a
+        // page number from the AI's assessment, not a verbatim quote to search for). Prefer
+        // a real text match when one was found; otherwise fall back to the hint over a blind page 1.
+        setPageNumber(found.length > 0 ? found[0].page : (activeSource.page || data.page || 1));
       })
-      .catch(() => { setMatches([]); setPageNumber(1); });
+      .catch(() => { setMatches([]); setPageNumber(activeSource.page || 1); });
   }, [activeSource, dbId]);
 
   const activeMatch = matches[activeMatchIdx];

@@ -406,10 +406,19 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
                 {deepAnalysis.anomalies.map((an, i) => (
                   <div key={i} className="rounded-lg border border-red-500/20 bg-red-500/5 p-4 text-red-200 flex items-start gap-3">
                     <AlertTriangle size={16} className="text-red-400 shrink-0 mt-0.5" />
-                    <div>
+                    <div className="flex-1">
                       <div className="font-semibold text-sm mb-1 text-red-400">{an.type}</div>
                       <div className="text-sm opacity-90">{an.description} <span className="opacity-75 text-xs ml-1">(Page {an.page})</span></div>
                     </div>
+                    {an.page && (
+                      <button
+                        onClick={() => setActiveSource({ label: an.type, quote: an.description, page: an.page })}
+                        title="Jump to page (anomalies are an AI assessment, not a verbatim quote, so the exact text may not highlight)"
+                        className="p-1 rounded bg-white/[0.03] border border-white/[0.06] text-zinc-500 hover:text-blue-400 hover:border-blue-500/40 transition-colors shrink-0"
+                      >
+                        <Hash size={11} />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -459,6 +468,18 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
                           {dl.anchor_type}
                         </span>
                         {dl.anchor_description}
+                        {dl.reasoning_chain?.length > 0 && (
+                          <button
+                            onClick={() => setActiveSource({
+                              label: dl.label,
+                              quote: dl.reasoning_chain.map(s => s.source_clause).filter(Boolean).join('\n')
+                            })}
+                            title="View Source"
+                            className="ml-auto p-1 rounded bg-white/[0.03] border border-white/[0.06] text-zinc-500 hover:text-blue-400 hover:border-blue-500/40 transition-colors"
+                          >
+                            <Hash size={11} />
+                          </button>
+                        )}
                       </div>
 
                       {/* Interactive Calculator UI */}
