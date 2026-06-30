@@ -356,8 +356,8 @@ def _run_deep_analysis(combined_context: str) -> dict:
 # MAIN PIPELINE
 # ─────────────────────────────────────────────────────────────────────────────
 
-def extract_contract_profile_with_combined_pipeline(chunks, filename):
-    print(f"🚀 Running Cascade AI Extraction for: {filename}...")
+def extract_contract_profile_with_combined_pipeline(chunks, filename, run_deep_analysis: bool = True):
+    print(f"🚀 Running Cascade AI Extraction for: {filename}... (deep_analysis={run_deep_analysis})")
 
     all_text = "\n".join([c['text'] for c in chunks])
 
@@ -381,7 +381,7 @@ def extract_contract_profile_with_combined_pipeline(chunks, filename):
     # =========================================================
     # 1. ATTEMPT GEMINI EXTRACTION (Primary — highest priority)
     # =========================================================
-    print("  🧠 Attempting Gemini-2.5-Flash (primary)...")
+    print("🧠 Attempting Gemini-3.5-Flash (primary)...")
 
     def get_field_schema(desc):
         return types.Schema(
@@ -573,8 +573,9 @@ Document Text:
 
     # =========================================================
     # 4. SECOND PASS — Deep Contract Analysis (Gemini only)
+    #    Only runs when the user explicitly requested it.
     # =========================================================
-    deep_analysis = _run_deep_analysis(combined_context)
+    deep_analysis = _run_deep_analysis(combined_context) if run_deep_analysis else {}
 
     return {
         "status": "success",

@@ -297,6 +297,9 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
     setSavingIdx(null);
   };
 
+  // ── EXTRACTION MODE SELECTION ──
+  const [extractionMode, setExtractionMode] = useState('primary'); // 'primary' | 'deep'
+
   return (
     <div className="animate-in fade-in duration-500">
       {!result ? (
@@ -305,12 +308,67 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
           <div className="relative">
             <UploadCloud size={36} className="mx-auto mb-6 text-blue-400" />
             <h3 className="mb-2 text-2xl font-semibold tracking-tight text-zinc-100">{file ? file.name : "Upload Purchase Order"}</h3>
+
             {file && !loading && (
-              <button onClick={(e) => { e.stopPropagation(); handleAnalyze(); }} className="mt-8 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white hover:bg-blue-500">
-                <Sparkles size={16} /> Run Enterprise Extraction
-              </button>
+              <div onClick={(e) => e.stopPropagation()} className="mt-8 flex flex-col items-center gap-5">
+
+                {/* Extraction mode selector */}
+                <div className="flex w-full max-w-md gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setExtractionMode('primary')}
+                    className={`flex-1 rounded-xl border px-4 py-3.5 text-left transition-all ${
+                      extractionMode === 'primary'
+                        ? 'border-blue-500/60 bg-blue-500/10 shadow-[0_0_0_1px_rgba(59,130,246,0.4)]'
+                        : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.04]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText size={14} className={extractionMode === 'primary' ? 'text-blue-400' : 'text-zinc-500'} />
+                      <span className={`text-sm font-semibold ${extractionMode === 'primary' ? 'text-blue-300' : 'text-zinc-300'}`}>
+                        Extract Primary Fields
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[11px] leading-snug text-zinc-500">
+                      Pulls only the 10 core fields (PO number, vendor, dates, value, terms…). Fast & cheap.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setExtractionMode('deep')}
+                    className={`flex-1 rounded-xl border px-4 py-3.5 text-left transition-all ${
+                      extractionMode === 'deep'
+                        ? 'border-purple-500/60 bg-purple-500/10 shadow-[0_0_0_1px_rgba(168,85,247,0.4)]'
+                        : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.04]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Sparkles size={14} className={extractionMode === 'deep' ? 'text-purple-400' : 'text-zinc-500'} />
+                      <span className={`text-sm font-semibold ${extractionMode === 'deep' ? 'text-purple-300' : 'text-zinc-300'}`}>
+                        Primary Fields + Deep Analysis
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[11px] leading-snug text-zinc-500">
+                      Adds deadline chains, anomaly detection & dynamic raw fields. Slower, more thorough.
+                    </p>
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => handleAnalyze(extractionMode)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white hover:bg-blue-500"
+                >
+                  <Sparkles size={16} /> Run {extractionMode === 'deep' ? 'Deep' : 'Primary'} Extraction
+                </button>
+              </div>
             )}
-            {loading && <div className="mt-8 text-blue-400 text-sm animate-pulse">Processing via Gemini Cascade...</div>}
+
+            {loading && (
+              <div className="mt-8 text-blue-400 text-sm animate-pulse">
+                {extractionMode === 'deep' ? 'Processing via Gemini Cascade + Deep Analysis...' : 'Processing via Gemini Cascade...'}
+              </div>
+            )}
             {error && <div className="mt-6 text-red-400 text-sm">{error}</div>}
           </div>
         </div>
