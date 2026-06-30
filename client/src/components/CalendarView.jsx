@@ -22,7 +22,10 @@ const SOURCE_COLORS = {
 };
 
 const CalendarView = ({ onSelectEvent }) => {
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 4, 25));
+  // Defaults to the real current month - dates now span many months/years (deadlines,
+  // effective dates, expiries across different POs), so a hardcoded month would hide
+  // most events behind manual navigation.
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [currentView, setCurrentView] = useState('month');
   const [rawEvents, setRawEvents] = useState([]);
 
