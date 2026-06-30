@@ -277,6 +277,58 @@ async def get_po_history(db: Session = Depends(get_db)):
     ]
 
 
+def _is_real_date(date_str):
+    if not date_str:
+        return False
+    s = str(date_str).strip().lower()
+    return s not in ("", "null", "none", "not_found", "n/a")
+
+
+@app.get("/api/calendar-events")
+async def get_calendar_events(db: Session = Depends(get_db)):
+    """
+    Aggregates every calendar-relevant date across all POs into one flat list:
+    lapse/expiry and effective dates (built-in fields), plus every deadline that
+    has a computed_date - whether the AI computed it directly or the user saved
+    it manually via the trigger-date calculator, since both end up written to the
+    same _deep_analysis.deadlines[].computed_date field once persisted.
+
+    Each event carries po_id + field_key so the frontend can both open the PO
+    and scroll straight to that specific date's row, instead of just opening
+    the PO and leaving the user to find it.
+    """
+    records = db.query(PurchaseOrderRecord).all()
+    events = []
+
+    for r in records:
+        label_base = r.po_number or r.filename
+
+        if _is_real_date(r.lapse_expiry_date):
+            events.append({
+                "po_id": r.id, "field_key": "lapse_expiry_date",
+                "label": f"Expiry — {label_base}", "date": r.lapse_expiry_date,
+                "source": "lapse_expiry_date",
+            })
+        if _is_real_date(r.effective_date):
+            events.append({
+                "po_id": r.id, "field_key": "effective_date",
+                "label": f"Effective — {label_base}", "date": r.effective_date,
+                "source": "effective_date",
+            })
+
+        deep = (r.custom_fields or {}).get("_deep_analysis", {})
+        for idx, dl in enumerate(deep.get("deadlines", []) or []):
+            if _is_real_date(dl.get("computed_date")):
+                events.append({
+                    "po_id": r.id, "field_key": f"deadline_{idx}",
+                    "label": f"{dl.get('label') or 'Deadline'} — {label_base}",
+                    "date": dl["computed_date"],
+                    "source": "deadline",
+                })
+
+    return events
+
+
 @app.get("/api/pos/{po_id}")
 async def get_po_details(po_id: int, db: Session = Depends(get_db)):
     record = db.query(PurchaseOrderRecord).filter(PurchaseOrderRecord.id == po_id).first()

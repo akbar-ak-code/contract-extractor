@@ -1,5 +1,5 @@
 // src/components/ExtractionView.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   UploadCloud, Hash, Building, MapPin, Clock, AlertTriangle, 
   DollarSign, Shield, List, Edit3, FileText, Sparkles, Check, X, 
@@ -47,6 +47,7 @@ const ProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActiveSour
 
   return (
     <div
+      id={`field-row-${fieldKey}`}
       className="group border-b border-white/[0.04] last:border-b-0 transition-colors hover:bg-white/[0.02]"
       style={{ display: 'flex', alignItems: 'flex-start', padding: '14px 20px', gap: 0 }}
     >
@@ -177,6 +178,7 @@ const DateProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActive
 
   return (
     <div
+      id={`field-row-${fieldKey}`}
       className="group border-b border-white/[0.04] last:border-b-0 transition-colors hover:bg-white/[0.02]"
       style={{ display: 'flex', alignItems: 'flex-start', padding: '14px 20px', gap: 0 }}
     >
@@ -249,11 +251,33 @@ const Card = ({ title, icon, children, borderColor = 'border-white/[0.06]', head
   </section>
 );
 
-const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFileSelection, handleAnalyze, setActiveSource, dbId, onUpdate, customFields = [] }) => {
+const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFileSelection, handleAnalyze, setActiveSource, dbId, onUpdate, customFields = [], scrollToField = null, onScrollToFieldDone = () => {} }) => {
   const deepAnalysis = result?._deep_analysis || null;
   const hasRawFields = deepAnalysis?.raw_fields && Object.keys(deepAnalysis.raw_fields).length > 0;
   const hasDeadlines = deepAnalysis?.deadlines && deepAnalysis.deadlines.length > 0;
   const hasAnomalies = deepAnalysis?.anomalies && deepAnalysis.anomalies.length > 0;
+
+  // Scroll to (and briefly flash) the field a calendar date click was targeting.
+  // Runs once result is loaded and rendered, since the target row only exists in
+  // the DOM after that. id matches what ProfileRow/DateProfileRow/deadline cards
+  // set themselves (field-row-{fieldKey} / deadline_{index}).
+  useEffect(() => {
+    if (!scrollToField || !result) return;
+    const elId = scrollToField.startsWith('deadline_') ? scrollToField : `field-row-${scrollToField}`;
+    const el = document.getElementById(elId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const prevTransition = el.style.transition;
+      const prevBackground = el.style.background;
+      el.style.transition = 'background 0.3s ease';
+      el.style.background = 'rgba(96,165,250,0.18)';
+      setTimeout(() => {
+        el.style.background = prevBackground;
+        setTimeout(() => { el.style.transition = prevTransition; }, 350);
+      }, 1200);
+    }
+    onScrollToFieldDone();
+  }, [scrollToField, result]);
 
   // ── TRIGGER STATE & AUTO-SYNC LOGIC ──
   const [triggerDates, setTriggerDates] = useState({});
@@ -496,11 +520,11 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
                   const calculatedResult = offset ? addTime(baseDateInput, offset) : null;
 
                   return (
-                    <div key={i} className="rounded-lg border border-white/5 bg-white/[0.02] p-4 flex flex-col gap-3">
-                      
+                    <div key={i} id={`deadline_${i}`} className="rounded-lg border border-white/5 bg-white/[0.02] p-4 flex flex-col gap-3">
+
                       <div className="flex justify-between items-start">
                         <div className="font-semibold text-zinc-200 text-sm">{dl.label}</div>
-                        
+
                         {!isNull && !isEditing ? (
                           <div className="flex items-center gap-2">
                             <div className="text-xs font-mono px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.1)]">

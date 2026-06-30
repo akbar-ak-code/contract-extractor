@@ -1,5 +1,5 @@
 // src/components/CalendarView.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import format from 'date-fns/format';
 import parse from 'date-fns/parse';
@@ -13,26 +13,45 @@ import { parseAiDate, getDaysLeft, getDeadlineColor } from '../utils/helpers.js'
 const locales = { 'en-US': enUS };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
 
-const CalendarView = ({ history, onSelectEvent }) => {
+// Distinct colors per date source so it's clear at a glance what kind of date it is,
+// independent of the urgency coloring used for expiry dates.
+const SOURCE_COLORS = {
+  lapse_expiry_date: null, // uses urgency-based getDeadlineColor instead
+  effective_date: '#3b82f6',
+  deadline: '#f59e0b',
+};
+
+const CalendarView = ({ onSelectEvent }) => {
   const [currentDate, setCurrentDate] = useState(new Date(2026, 4, 25));
   const [currentView, setCurrentView] = useState('month');
+  const [rawEvents, setRawEvents] = useState([]);
 
-  const events = history.map(po => {
-    const parsedDate = parseAiDate(po.lapse_expiry_date);
+  useEffect(() => {
+    fetch('http://localhost:8000/api/calendar-events')
+      .then(res => res.json())
+      .then(data => setRawEvents(Array.isArray(data) ? data : []))
+      .catch(() => setRawEvents([]));
+  }, []);
+
+  const events = rawEvents.map((e, i) => {
+    const parsedDate = parseAiDate(e.date);
     if (!parsedDate) return null;
     return {
-      id: po.id,
-      title: `Expiry: ${po.po_number || po.filename.substring(0, 10)}`,
+      id: i,
+      poId: e.po_id,
+      fieldKey: e.field_key,
+      source: e.source,
+      title: e.label,
       start: parsedDate,
       end: parsedDate,
       allDay: true,
-      resource: po
     };
-  }).filter(e => e !== null);
+  }).filter(Boolean);
 
   const eventStyleGetter = (event) => {
-    const daysLeft = getDaysLeft(event.start);
-    const backgroundColor = getDeadlineColor(daysLeft);
+    const backgroundColor = event.source === 'lapse_expiry_date'
+      ? getDeadlineColor(getDaysLeft(event.start))
+      : (SOURCE_COLORS[event.source] || '#6b7280');
     return {
       style: {
         backgroundColor,
@@ -65,7 +84,7 @@ const CalendarView = ({ history, onSelectEvent }) => {
         view={currentView}
         onView={(newView) => setCurrentView(newView)}
         eventPropGetter={eventStyleGetter}
-        onSelectEvent={(event) => onSelectEvent(event.id)}
+        onSelectEvent={(event) => onSelectEvent(event.poId, event.fieldKey)}
       />
     </div>
   );
