@@ -10,44 +10,59 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [scale, setScale] = useState(1.0);
+  const [matches, setMatches] = useState([]);       // [{quote, page}, ...] resolved chunks
+  const [activeMatchIdx, setActiveMatchIdx] = useState(0);
   const prevLabelRef = useRef(null);
 
-  // Auto-jump to the page containing the quote whenever the source changes
+  // Resolve the quote into one or more locatable chunks whenever the source changes.
+  // The quote itself is untouched — this only changes how we search for it in the PDF.
   useEffect(() => {
     if (!activeSource?.quote || !dbId) return;
     if (activeSource.quote === "No source quote extracted.") return;
 
-    // Reset on new field open
     if (prevLabelRef.current !== activeSource.label) {
-      setPageNumber(1);
       setNumPages(null);
+      setMatches([]);
+      setActiveMatchIdx(0);
       prevLabelRef.current = activeSource.label;
     }
 
-    // 🛠️ THE FIX: Only send the first 100 characters in the URL to prevent HTTP 414!
-    const shortQuote = activeSource.quote.substring(0, 100);
-    const encodedQuote = encodeURIComponent(shortQuote);
-    
-    fetch(`http://localhost:8000/api/pos/${dbId}/find-page?quote=${encodedQuote}`)
+    fetch(`http://localhost:8000/api/pos/${dbId}/find-page`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quote: activeSource.quote })
+    })
       .then(res => res.json())
-      .then(data => { if (data.page) setPageNumber(data.page); })
-      .catch(() => setPageNumber(1));
+      .then(data => {
+        const found = data.matches || [];
+        setMatches(found);
+        setActiveMatchIdx(0);
+        setPageNumber(found.length > 0 ? found[0].page : (data.page || 1));
+      })
+      .catch(() => { setMatches([]); setPageNumber(1); });
   }, [activeSource, dbId]);
 
-  // ── Highlight fix: slide a window of N words across the ENTIRE quote
-  // so we can match any sub-phrase, not just the beginning.
+  const activeMatch = matches[activeMatchIdx];
+
+  function goToMatch(idx) {
+    if (idx < 0 || idx >= matches.length) return;
+    setActiveMatchIdx(idx);
+    setPageNumber(matches[idx].page);
+  }
+
+  // Highlights the currently active match's short chunk on the current page — far more
+  // reliable than searching for the entire original quote, since each chunk has already
+  // been confirmed to exist on this specific page by the backend.
   const textRenderer = useCallback(
     (textItem) => {
-      const quote = activeSource?.quote;
-      if (!quote || quote === "No source quote extracted.") return textItem.str;
+      const quote = activeMatch?.quote;
+      if (!quote) return textItem.str;
 
       const itemStr = textItem.str;
       const lowerItem = itemStr.toLowerCase();
 
-      // Normalize the quote: collapse all whitespace to single spaces
       const quoteWords = quote.trim().toLowerCase().replace(/\s+/g, ' ').split(' ').filter(Boolean);
 
-      // Try windows from large → small (min 3 words) sliding across the whole quote
       const MIN_WINDOW = 3;
       const MAX_WINDOW = Math.min(quoteWords.length, 12);
 
@@ -66,7 +81,7 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
 
       return itemStr;
     },
-    [activeSource]
+    [activeMatch]
   );
 
   if (!activeSource || !dbId) return null;
@@ -132,6 +147,28 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
           "{activeSource.quote}"
         </div>
       </div>
+
+      {/* ── Match navigation: only shown when the quote resolved to more than one
+           locatable excerpt (e.g. a long composite field spread across the PDF) ── */}
+      {matches.length > 1 && (
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 24px', background: '#161b22', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          <span style={{ fontSize: 11, color: '#93c5fd', fontFamily: 'monospace' }}>
+            Excerpt {activeMatchIdx + 1} of {matches.length} (page {activeMatch?.page})
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              disabled={activeMatchIdx <= 0}
+              onClick={() => goToMatch(activeMatchIdx - 1)}
+              style={{ background: 'none', border: 'none', cursor: activeMatchIdx <= 0 ? 'default' : 'pointer', color: activeMatchIdx <= 0 ? '#3f3f46' : '#93c5fd', padding: 4 }}
+            ><ChevronLeft size={16} /></button>
+            <button
+              disabled={activeMatchIdx >= matches.length - 1}
+              onClick={() => goToMatch(activeMatchIdx + 1)}
+              style={{ background: 'none', border: 'none', cursor: activeMatchIdx >= matches.length - 1 ? 'default' : 'pointer', color: activeMatchIdx >= matches.length - 1 ? '#3f3f46' : '#93c5fd', padding: 4 }}
+            ><ChevronRight size={16} /></button>
+          </div>
+        </div>
+      )}
 
       {/* ── Page controls: fixed height ── */}
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 24px', background: '#181818', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>

@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import shutil
 import os
+import re
 import uuid
 import hashlib
 import json
@@ -324,30 +325,97 @@ async def get_po_pdf(po_id: int, db: Session = Depends(get_db)):
     return FileResponse(record.pdf_file_path, media_type="application/pdf")
 
 
-@app.get("/api/pos/{po_id}/find-page")
-async def find_quote_page(po_id: int, quote: str, db: Session = Depends(get_db)):
+def _normalize_ws(s):
+    """Collapses all whitespace runs to a single space. Real PDFs frequently break
+    label/value pairs and table cells across lines (e.g. 'Our Order No: \\n4800178856-4'),
+    which makes raw substring search against AI-extracted quotes fail even when the
+    quote is genuinely verbatim. Normalizing both sides before comparing fixes that."""
+    return re.sub(r"\s+", " ", s or "").strip().lower()
+
+
+def _split_quote_into_chunks(quote, max_chunks=25, min_words=4, min_chars=15):
+    """Splits a (possibly long) AI-extracted quote into sentence-level pieces.
+
+    Long composite quotes (e.g. conditions_of_agreement) are often assembled by the
+    AI from several non-contiguous clauses scattered across the document, so they
+    can almost never be located as a single span. Short quotes are already a single
+    locatable unit and are returned unchanged. This is pure text splitting — it does
+    not call the AI and does not change what was extracted, only how it's searched for."""
+    quote = (quote or "").strip()
+    if not quote:
+        return []
+    if len(quote) <= 150:
+        return [quote]
+
+    raw_pieces = re.split(r"(?<=[.;:])\s+|\n+", quote)
+    chunks = []
+    for piece in raw_pieces:
+        piece = piece.strip()
+        if not piece or len(piece) < min_chars or len(piece.split()) < min_words:
+            continue
+        chunks.append(piece[:300])
+        if len(chunks) >= max_chunks:
+            break
+    return chunks or [quote[:300]]
+
+
+class FindPageRequest(BaseModel):
+    quote: str
+
+
+@app.post("/api/pos/{po_id}/find-page")
+async def find_quote_page(po_id: int, payload: FindPageRequest, db: Session = Depends(get_db)):
+    """
+    Locates an AI-extracted quote inside the source PDF. The quote is split into
+    sentence-level chunks and matched against each page with whitespace normalized
+    on both sides. Returns every chunk that was actually found, each tagged with its
+    page — so a long composite quote resolves to several correctly-placed highlights
+    instead of one unreliable single-page jump, and short quotes resolve exactly as
+    before (just more reliably, since whitespace differences no longer break the match).
+
+    POST + body (not GET + query param) so the full quote can be sent regardless of
+    length — the previous GET version had to truncate to 100 chars to avoid HTTP 414,
+    which silently dropped everything past that point.
+    """
     import fitz
     record = db.query(PurchaseOrderRecord).filter(PurchaseOrderRecord.id == po_id).first()
     if not record or not record.pdf_file_path or not os.path.exists(record.pdf_file_path):
         raise HTTPException(status_code=404, detail="PDF file not found on server.")
 
-    search_snippet = quote.strip()[:60].lower()
-    if not search_snippet:
-        return {"page": 1}
+    chunks = _split_quote_into_chunks(payload.quote)
+    if not chunks:
+        return {"matches": [], "page": 1}
 
     try:
         doc = fitz.open(record.pdf_file_path)
-        for i, page in enumerate(doc):
-            if search_snippet in page.get_text("text").lower():
-                return {"page": i + 1}
-        short_snippet = search_snippet[:30]
-        for i, page in enumerate(doc):
-            if short_snippet in page.get_text("text").lower():
-                return {"page": i + 1}
+        pages_norm = [_normalize_ws(page.get_text("text")) for page in doc]
     except Exception as e:
-        print(f"⚠️ find-page error: {e}")
+        print(f"⚠️ find-page error opening PDF: {e}")
+        return {"matches": [], "page": 1}
 
-    return {"page": 1}
+    matches = []
+    for chunk in chunks:
+        norm_chunk = _normalize_ws(chunk)
+        if not norm_chunk:
+            continue
+        found_page = None
+        for i, page_text in enumerate(pages_norm):
+            if norm_chunk in page_text:
+                found_page = i + 1
+                break
+        if found_page is None:
+            short = norm_chunk[:60]
+            for i, page_text in enumerate(pages_norm):
+                if short and short in page_text:
+                    found_page = i + 1
+                    break
+        if found_page is not None:
+            matches.append({"quote": chunk, "page": found_page})
+
+    return {
+        "matches": matches,
+        "page": matches[0]["page"] if matches else 1
+    }
 
 
 # ═══════════════════════════════════════════════════════════════════════════
