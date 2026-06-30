@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-multipart
+pandas
+torch
+transformers
+google-genai
+python-dotenv
+pymupdf

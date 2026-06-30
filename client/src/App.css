@@ -1,0 +1,167 @@
+/* --- Base Variables & Global Reset --- */
+:root {
+  --bg-main: #121212;
+  --bg-panel: #141414;
+  --bg-card: #1c1c1c;
+  --border-color: #333333;
+  --text-main: #e0e0e0;
+  --text-muted: #888888;
+  --accent-color: #5c9ce6;
+  --accent-hover: #4b8bcf;
+  --danger-color: #ef4444;
+  --warning-color: #f59e0b;
+  --success-color: #10b981;
+}
+
+* { 
+  box-sizing: border-box; 
+  margin: 0; 
+  padding: 0; 
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  line-height: 1.5;
+  overflow: hidden; /* App.jsx handles the internal scrolling */
+}
+
+/* --- Global Scrollbar Styling --- */
+::-webkit-scrollbar { 
+  width: 8px; 
+  height: 8px;
+}
+::-webkit-scrollbar-track { 
+  background: var(--bg-main); 
+}
+::-webkit-scrollbar-thumb { 
+  background: var(--border-color); 
+  border-radius: 4px; 
+}
+::-webkit-scrollbar-thumb:hover { 
+  background: #555; 
+}
+
+/* --- Core Animations --- */
+.animate-fade-in { 
+  animation: fadeIn 0.4s ease-out forwards; 
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin { 
+  100% { transform: rotate(360deg); } 
+}
+
+/* Loading Spinner overrides */
+.spinner {
+  border-top-color: var(--accent-color) !important;
+}
+
+
+/* ==========================================================================
+   REACT BIG CALENDAR - DARK MODE OVERRIDES
+   ========================================================================== */
+
+/* Main Calendar Text and Borders */
+.rbc-calendar {
+  color: var(--text-main);
+  font-family: inherit;
+}
+
+.rbc-month-view, 
+.rbc-time-view, 
+.rbc-agenda-view {
+  border-color: var(--border-color);
+  background-color: var(--bg-card);
+  border-radius: 0 0 8px 8px;
+}
+
+/* Headers (Days of the week) */
+.rbc-header {
+  border-bottom: 1px solid var(--border-color);
+  border-left: 1px solid var(--border-color);
+  padding: 12px 8px;
+  font-weight: 500;
+  color: var(--accent-color);
+}
+
+/* Day background cells */
+.rbc-day-bg {
+  border-left: 1px solid var(--border-color);
+}
+.rbc-month-row {
+  border-top: 1px solid var(--border-color);
+}
+
+/* Today Highlight */
+.rbc-today {
+  background-color: rgba(92, 156, 230, 0.08); /* Subtle blue tint */
+}
+
+/* Weekends / Off-Range Days */
+.rbc-off-range-bg {
+  background-color: #181818;
+}
+.rbc-off-range .rbc-button-link {
+  color: #555; /* Dim the dates outside current month */
+}
+
+/* Event Blocks */
+.rbc-event {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Time Grid (Weekly/Daily View) */
+.rbc-time-content {
+  border-top: 1px solid var(--border-color);
+}
+.rbc-time-header.rbc-overflowing {
+  border-right: 1px solid var(--border-color);
+}
+.rbc-timeslot-group {
+  border-bottom: 1px solid var(--border-color);
+}
+.rbc-time-column .rbc-timeslot-group {
+  border-right: 1px solid var(--border-color);
+}
+.rbc-day-slot .rbc-time-slot {
+  border-top: 1px solid #2a2a2a;
+}
+
+/* Toolbar (Month/Week/Day Buttons) */
+.rbc-toolbar {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 0;
+}
+.rbc-toolbar button {
+  color: var(--text-main);
+  border: 1px solid #444;
+  background: transparent;
+  padding: 6px 16px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.rbc-toolbar button:hover {
+  background: #333;
+}
+.rbc-toolbar button:active, 
+.rbc-toolbar button.rbc-active {
+  background: var(--accent-color);
+  color: #121212;
+  border-color: var(--accent-color);
+  font-weight: 600;
+  box-shadow: none;
+}
+.rbc-toolbar button:focus {
+  outline: none;
+}

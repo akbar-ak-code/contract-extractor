@@ -1,0 +1,181 @@
+@import "tailwindcss";
+
+/* =========================================================
+   GLOBAL UTILITIES
+   ========================================================= */
+::-webkit-scrollbar { 
+  width: 8px; 
+  height: 8px;
+}
+::-webkit-scrollbar-track { 
+  background: #121212; 
+}
+::-webkit-scrollbar-thumb { 
+  background: #333333; 
+  border-radius: 4px; 
+}
+::-webkit-scrollbar-thumb:hover { 
+  background: #555555; 
+}
+
+/* =========================================================
+   REACT BIG CALENDAR - DARK MODE OVERRIDES
+   ========================================================= */
+/* Forces off-month days to be dark */
+.rbc-off-range-bg {
+  background-color: rgba(0, 0, 0, 0.25) !important; 
+}
+
+/* Main calendar grid backgrounds */
+.rbc-month-view, 
+.rbc-time-view, 
+.rbc-agenda-view {
+  background-color: rgba(18, 18, 20, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2) !important;
+  backdrop-filter: blur(5px) !important;
+}
+
+/* Grid borders */
+.rbc-day-bg {
+  border-left: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+.rbc-month-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-bottom: none !important;
+}
+.rbc-month-row + .rbc-month-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Days of the week headers */
+.rbc-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.05) !important;
+  color: #71717a !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  padding: 12px 0 !important;
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+.rbc-header + .rbc-header {
+  border-left: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Date cells */
+.rbc-date-cell {
+  padding: 8px 10px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: #a1a1aa !important;
+}
+
+.rbc-date-cell.rbc-now a {
+  color: #3b82f6 !important;
+  font-weight: 700 !important;
+  background: rgba(59, 130, 246, 0.15) !important;
+  padding: 3px 7px !important;
+  border-radius: 6px !important;
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.3) !important;
+}
+
+.rbc-day-bg.rbc-today {
+  background-color: rgba(59, 130, 246, 0.03) !important;
+}
+
+/* Toolbar Title and Flex Row */
+.rbc-toolbar {
+  margin-bottom: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+.rbc-toolbar-label {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: #ffffff !important;
+  letter-spacing: -0.01em !important;
+  text-align: center !important;
+}
+
+/* Toolbar Buttons (Month, Week, Back, Next) */
+.rbc-toolbar button {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 8px !important;
+  color: #a1a1aa !important;
+  padding: 6px 14px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  margin: 0 2px !important;
+}
+
+.rbc-toolbar button:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.rbc-toolbar button:active,
+.rbc-toolbar button.rbc-active {
+  background: #3b82f6 !important;
+  color: #ffffff !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+}
+
+.rbc-toolbar button:focus {
+  background: rgba(255, 255, 255, 0.08) !important;
+  outline: none !important;
+}
+
+/* Event blocks */
+.rbc-event {
+  border-radius: 6px !important;
+  margin-top: 2px !important;
+}
+
+.rbc-event:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* =========================================================
+   PDF SOURCE HIGHLIGHT OVERLAYS
+   ========================================================= */
+@keyframes highlight-fade-in-pulse {
+  0% {
+    opacity: 0;
+    background-color: rgba(250, 204, 21, 0);
+  }
+  20% {
+    opacity: 1;
+    background-color: rgba(250, 204, 21, 0.8);
+    box-shadow: 0 0 10px rgba(250, 204, 21, 0.5);
+  }
+  40% {
+    background-color: rgba(250, 204, 21, 0.35);
+    box-shadow: 0 0 0px rgba(250, 204, 21, 0);
+  }
+  100% {
+    opacity: 1;
+    background-color: rgba(250, 204, 21, 0.35);
+  }
+}
+
+.pdf-source-highlight {
+  position: absolute;
+  border-radius: 3px;
+  animation: highlight-fade-in-pulse 1.2s ease-out forwards;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  z-index: 10;
+}

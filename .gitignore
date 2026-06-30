@@ -1,0 +1,7 @@
+node_modules/
+__pycache__/
+venv/
+.env
+contract_cache.json
+temp_uploads/
+test_contracts/
