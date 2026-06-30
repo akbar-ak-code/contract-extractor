@@ -101,45 +101,39 @@ const AllPOsView = ({ history, onLoadPO, onDeletePO }) => {
 
       {/* ── Search bar ── */}
       <div style={{ position: 'relative' }}>
-        <Search size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#52525b', pointerEvents: 'none' }} />
+        <Search size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#888888', pointerEvents: 'none', zIndex: 1 }} />
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search by PO number, vendor, or filename…"
+          className="glass-input"
           style={{
             width: '100%', boxSizing: 'border-box',
-            background: '#1a1a1d', border: '1px solid rgba(255,255,255,0.07)',
-            borderRadius: 10, padding: '10px 14px 10px 38px',
-            fontSize: 13, color: '#e4e4e7', outline: 'none',
-            transition: 'border-color 0.15s',
+            paddingLeft: '38px',
           }}
-          onFocus={e => e.target.style.borderColor = 'rgba(59,130,246,0.5)'}
-          onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.07)'}
         />
         {search && (
           <button onClick={() => setSearch('')} style={{
             position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-            background: 'none', border: 'none', color: '#52525b', cursor: 'pointer', fontSize: 18, lineHeight: 1
+            background: 'none', border: 'none', color: '#52525b', cursor: 'pointer', fontSize: 18, lineHeight: 1, zIndex: 2
           }}>×</button>
         )}
       </div>
 
       {/* ── Table header ── */}
-      <div style={{
-        borderRadius: 16, border: '1px solid rgba(255,255,255,0.06)',
-        background: 'linear-gradient(to bottom, #1a1a1d, #141416)',
-        overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+      <div className="glass-card" style={{
+        overflow: 'hidden',
       }}>
         {/* Column headers */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: '36px 1fr 160px 160px 120px 64px',
-          padding: '10px 18px', gap: 12,
+          padding: '12px 18px', gap: 12,
           background: 'rgba(255,255,255,0.02)',
-          borderBottom: '1px solid rgba(255,255,255,0.05)',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
         }}>
           {['', 'PO / Vendor', 'Effective Date', 'Expiry Date', 'Status', ''].map((h, i) => (
-            <div key={i} style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#52525b' }}>{h}</div>
+            <div key={i} style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888888' }}>{h}</div>
           ))}
         </div>
 
@@ -164,13 +158,13 @@ const AllPOsView = ({ history, onLoadPO, onDeletePO }) => {
               style={{
                 display: 'grid',
                 gridTemplateColumns: '36px 1fr 160px 160px 120px 64px',
-                padding: '13px 18px', gap: 12, alignItems: 'center',
+                padding: '14px 18px', gap: 12, alignItems: 'center',
                 borderBottom: idx < filtered.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
                 cursor: isDeleting ? 'default' : 'pointer',
-                background: isDeleting ? 'rgba(239,68,68,0.06)' : 'transparent',
-                transition: 'background 0.15s',
+                background: isDeleting ? 'rgba(239,68,68,0.08)' : 'transparent',
+                transition: 'all 0.2s ease',
               }}
-              onMouseEnter={e => { if (!isDeleting) e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
+              onMouseEnter={e => { if (!isDeleting) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
               onMouseLeave={e => { if (!isDeleting) e.currentTarget.style.background = 'transparent'; }}
             >
               {/* Index */}

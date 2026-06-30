@@ -53,8 +53,8 @@ const ProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActiveSour
       <div style={{ flexShrink: 0, width: 156, display: 'flex', alignItems: 'flex-start', gap: 9, paddingTop: 1 }}>
         <span style={{
           flexShrink: 0, width: 28, height: 28, borderRadius: 7,
-          background: 'rgba(59,130,246,0.1)', color: '#60a5fa',
-          boxShadow: 'inset 0 0 0 1px rgba(59,130,246,0.2)',
+          background: 'rgba(99,102,241,0.1)', color: '#6366F1',
+          boxShadow: 'inset 0 0 0 1px rgba(99,102,241,0.2)',
           display: 'flex', alignItems: 'center', justifyContent: 'center'
         }}>{icon}</span>
         <span style={{ fontSize: 12, fontWeight: 500, color: '#a1a1aa', lineHeight: 1.4, paddingTop: 6 }}>{label}</span>
@@ -66,11 +66,10 @@ const ProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActiveSour
             value={tempVal}
             onChange={e => setTempVal(e.target.value)}
             autoFocus
+            className="glass-input"
             style={{
-              width: '100%', minHeight: 56, background: '#242424',
-              border: '1px solid rgba(59,130,246,0.5)', borderRadius: 6,
-              padding: '7px 11px', fontSize: 13, color: '#fff',
-              outline: 'none', resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box'
+              width: '100%', minHeight: 56,
+              resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box'
             }}
           />
         ) : isMissing ? (
@@ -158,7 +157,7 @@ const ProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActiveSour
         ) : (
           <button onClick={() => setIsEditing(true)} title="Edit"
             style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: '#71717a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.background='rgba(59,130,246,0.12)'; e.currentTarget.style.color='#60a5fa'; e.currentTarget.style.borderColor='rgba(59,130,246,0.4)'; }}>
+            onMouseEnter={e => { e.currentTarget.style.background='rgba(99,102,241,0.12)'; e.currentTarget.style.color='#6366F1'; e.currentTarget.style.borderColor='rgba(99,102,241,0.4)'; }}>
             <Edit2 size={12} />
           </button>
         )}
@@ -202,7 +201,8 @@ const DateProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActive
       <div style={{ flexShrink: 0, width: 156, display: 'flex', alignItems: 'flex-start', gap: 9, paddingTop: 1 }}>
         <span style={{
           flexShrink: 0, width: 28, height: 28, borderRadius: 7,
-          background: 'rgba(59,130,246,0.1)', color: '#60a5fa',
+          background: 'rgba(99,102,241,0.1)', color: '#6366F1',
+          boxShadow: 'inset 0 0 0 1px rgba(99,102,241,0.2)',
           display: 'flex', alignItems: 'center', justifyContent: 'center'
         }}>{icon}</span>
         <span style={{ fontSize: 12, fontWeight: 500, color: '#a1a1aa', lineHeight: 1.4, paddingTop: 6 }}>{label}</span>
@@ -211,22 +211,19 @@ const DateProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActive
       <div style={{ flex: 1, minWidth: 0, paddingLeft: 12, paddingTop: 2 }}>
         {isEditing ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <textarea
-              value={tempVal}
-              onChange={e => setTempVal(e.target.value)}
-              autoFocus
-              placeholder="Type a date manually…"
+            <input
+              value={tempVal} onChange={e => setTempVal(e.target.value)} autoFocus
+              className="glass-input"
               style={{
-                width: '100%', minHeight: 40, background: '#242424',
-                border: '1px solid rgba(59,130,246,0.5)', borderRadius: 6,
-                padding: '7px 11px', fontSize: 13, color: '#fff', outline: 'none'
+                width: '100%', minHeight: 38, padding: '7px 11px'
               }}
             />
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 11, color: '#71717a' }}>Or pick:</span>
               <input
                 type="date" value={toInputDate(tempVal)} onChange={handleCalendarChange}
-                style={{ background: '#242424', border: '1px solid rgba(59,130,246,0.35)', borderRadius: 6, padding: '4px 9px', fontSize: 12, color: '#a1a1aa', outline: 'none', colorScheme: 'dark' }}
+                className="glass-input"
+                style={{ padding: '4px 9px', fontSize: 12, colorScheme: 'dark', minHeight: 'unset', width: 'auto' }}
               />
             </div>
           </div>
@@ -266,23 +263,25 @@ const DateProfileRow = ({ icon, label, fieldKey, data, dbId, onUpdate, setActive
       </div>
 
       <div style={{ flexShrink: 0, display: 'flex', gap: 5, paddingLeft: 10, paddingTop: 1 }}>
+      <div style={{ flexShrink: 0, display: 'flex', gap: 5, paddingLeft: 10, paddingTop: 1 }}>
         {isEditing ? (
           <>
-            <button onClick={handleSave} style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(52,211,153,0.1)', border: 'none', color: '#34d399', cursor: 'pointer' }}><Check size={14} /></button>
-            <button onClick={() => { setTempVal(val); setIsEditing(false); }} style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(239,68,68,0.1)', border: 'none', color: '#f87171', cursor: 'pointer' }}><X size={14} /></button>
+            <button onClick={handleSave} style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Check size={14} /></button>
+            <button onClick={() => { setTempVal(val); setIsEditing(false); }} style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
           </>
         ) : (
-          <button onClick={() => setIsEditing(true)} style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: '#71717a', cursor: 'pointer' }}><Edit2 size={12} /></button>
+          <button onClick={() => setIsEditing(true)} style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: '#71717a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Edit2 size={12} /></button>
         )}
+      </div>
       </div>
     </div>
   );
 };
 
-const Card = ({ title, icon, children, borderColor = 'border-white/[0.05]', headerBg = 'bg-white/[0.01]' }) => (
-  <section className={`overflow-hidden rounded-2xl border ${borderColor} bg-white/[0.01] shadow-2xl shadow-black/40 backdrop-blur-xl ring-1 ring-inset ring-white/[0.02]`}>
-    <header className={`flex items-center gap-2.5 border-b ${borderColor} ${headerBg} px-5 py-3.5`}>
-      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-500/10 text-blue-400 ring-1 ring-inset ring-blue-500/20">
+const Card = ({ title, icon, children }) => (
+  <section className="glass-card overflow-hidden">
+    <header className="flex items-center gap-2.5 border-b border-white/[0.06] bg-white/[0.01] px-5 py-3.5">
+      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20">
         {icon}
       </span>
       <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">{title}</h2>
@@ -337,17 +336,22 @@ const handleSaveDeadline = async (idx, calculatedResult) => {
   return (
     <div className="animate-in fade-in duration-500">
       {!result ? (
-        <div onClick={() => !loading && fileInputRef.current.click()} className="group relative overflow-hidden rounded-2xl border-2 border-dashed border-white/10 bg-gradient-to-b from-[#1a1a1d] to-[#141416] px-10 py-24 text-center cursor-pointer">
+        <div onClick={() => !loading && fileInputRef.current.click()} className="group relative overflow-hidden rounded-2xl border-2 border-dashed border-white/10 bg-white/[0.01] backdrop-blur-xl px-10 py-24 text-center cursor-pointer transition-all duration-300 hover:border-indigo-500/40 hover:bg-white/[0.02]">
           <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={(e) => handleFileSelection(e.target.files[0])} />
           <div className="relative">
-            <UploadCloud size={36} className="mx-auto mb-6 text-blue-400" />
+            <UploadCloud size={36} className="mx-auto mb-6 text-indigo-400" />
             <h3 className="mb-2 text-2xl font-semibold tracking-tight text-zinc-100">{file ? file.name : "Upload Purchase Order"}</h3>
             {file && !loading && (
-              <button onClick={(e) => { e.stopPropagation(); handleAnalyze(); }} className="mt-8 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white hover:bg-blue-500">
+              <button onClick={(e) => { e.stopPropagation(); handleAnalyze(); }} className="mt-8 glass-btn-primary">
                 <Sparkles size={16} /> Run Enterprise Extraction
               </button>
             )}
-            {loading && <div className="mt-8 text-blue-400 text-sm animate-pulse">Processing via Gemini Cascade...</div>}
+            {loading && (
+              <div className="mt-8 flex flex-col items-center gap-4 justify-center">
+                <RefreshCw size={24} className="animate-spin text-indigo-400" />
+                <div className="text-zinc-400 text-sm animate-pulse">Processing via Gemini Cascade...</div>
+              </div>
+            )}
             {error && <div className="mt-6 text-red-400 text-sm">{error}</div>}
           </div>
         </div>
@@ -412,8 +416,8 @@ const handleSaveDeadline = async (idx, calculatedResult) => {
                               type="date" 
                               value={baseDateInput}
                               onChange={(e) => handleTriggerChange(i, e.target.value, dl.anchor_description)}
-                              className="bg-[#1a1a1d] border border-white/10 rounded px-2 py-1.5 text-xs text-zinc-300 outline-none focus:border-blue-500/50"
-                              style={{ colorScheme: 'dark' }}
+                              className="glass-input"
+                              style={{ colorScheme: 'dark', padding: '6px 10px', fontSize: 12, minHeight: 'unset' }}
                             />
                           </div>
 
@@ -424,19 +428,19 @@ const handleSaveDeadline = async (idx, calculatedResult) => {
                               Calculated Offset {offset ? `(+${offset.amount} ${offset.unit}s)` : '(Manual)'}
                             </label>
                             <div className="flex items-center gap-2">
-                              <div className={`px-3 py-1.5 rounded text-xs font-mono border ${calculatedResult ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-zinc-900 border-zinc-800 text-zinc-600'}`}>
+                              <div className={`px-3 py-1.5 rounded text-xs font-mono border ${calculatedResult ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-zinc-900 border-zinc-800 text-zinc-650'}`}>
                                 {calculatedResult || 'YYYY-MM-DD'}
                               </div>
                               
                               {calculatedResult && (
                                <button 
-  onClick={() => handleSaveDeadline(i, calculatedResult)}
-  disabled={savingIdx === i}
-  title="Save this calculated date"
-  className="p-1.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
->
-  {savingIdx === i ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-</button>
+                                  onClick={() => handleSaveDeadline(i, calculatedResult)}
+                                  disabled={savingIdx === i}
+                                  title="Save this calculated date"
+                                  className="p-1.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+                                >
+                                  {savingIdx === i ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                                </button>
                               )}
                             </div>
                           </div>

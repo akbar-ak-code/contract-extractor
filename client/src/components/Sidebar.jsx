@@ -13,15 +13,11 @@ const DeadlineCard = ({ po, onLoadPO, onDeletePO }) => {
       onClick={() => onLoadPO(po.id)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      className="glass-card"
       style={{
         padding: '11px 10px 11px 16px', borderRadius: 10,
-        background: hovered ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.02)',
-        border: `1px solid ${hovered ? 'rgba(96, 165, 250, 0.25)' : 'rgba(255, 255, 255, 0.05)'}`,
         cursor: 'pointer', position: 'relative', overflow: 'hidden',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        transition: 'all 0.25s cubic-bezier(0.25, 1, 0.5, 1)',
-        transform: hovered ? 'translateY(-1px)' : 'none',
-        boxShadow: hovered ? '0 8px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255,255,255,0.03)' : 'none',
       }}
     >
       {/* Left color accent bar */}
@@ -79,14 +75,12 @@ const Sidebar = ({ history, onNewUpload, onLoadPO, onDeletePO }) => {
   // ── COLLAPSED: slim icon strip ──────────────────────────────────────────
   if (collapsed) {
     return (
-      <aside style={{
+      <aside className="glass-panel" style={{
         width: 56, flexShrink: 0, height: '100%',
-        background: 'rgba(10, 10, 12, 0.6)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        borderRight: '1px solid rgba(255, 255, 255, 0.06)',
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         paddingTop: 16, gap: 10, overflow: 'hidden',
+        borderTop: 'none', borderBottom: 'none', borderLeft: 'none',
+        borderRight: '1px solid rgba(255, 255, 255, 0.08)'
       }}>
         {/* Expand */}
         <button
@@ -129,16 +123,12 @@ const Sidebar = ({ history, onNewUpload, onLoadPO, onDeletePO }) => {
         <button
           onClick={onNewUpload}
           title="New PO Upload"
+          className="glass-btn-primary"
           style={{
             width: 34, height: 34, borderRadius: 9, 
-            background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-            border: 'none', color: '#ffffff', cursor: 'pointer', flexShrink: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-            transition: 'all 0.2s ease',
+            flexShrink: 0,
+            padding: 0,
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(135deg, #60a5fa 0%, #2563eb 100%)'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'; }}
         >
           <Plus size={16} strokeWidth={2.5} />
         </button>
@@ -165,13 +155,11 @@ const Sidebar = ({ history, onNewUpload, onLoadPO, onDeletePO }) => {
 
   // ── EXPANDED ────────────────────────────────────────────────────────────
   return (
-    <aside style={{
+    <aside className="glass-panel" style={{
       width: 280, flexShrink: 0, height: '100%',
-      background: 'rgba(10, 10, 12, 0.6)',
-      backdropFilter: 'blur(16px)',
-      WebkitBackdropFilter: 'blur(16px)',
-      borderRight: '1px solid rgba(255, 255, 255, 0.06)',
       display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      borderTop: 'none', borderBottom: 'none', borderLeft: 'none',
+      borderRight: '1px solid rgba(255, 255, 255, 0.08)'
     }}>
       {/* Top section (non-scrolling) */}
       <div style={{ padding: '18px 14px 14px', flexShrink: 0 }}>
@@ -212,15 +200,11 @@ const Sidebar = ({ history, onNewUpload, onLoadPO, onDeletePO }) => {
         {/* New PO button */}
         <button
           onClick={onNewUpload}
+          className="glass-btn-primary"
           style={{
             width: '100%', padding: '9px 14px',
-            background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', color: '#ffffff',
-            fontWeight: 700, fontSize: 13, borderRadius: 10, border: 'none',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            boxShadow: '0 4px 14px rgba(59, 130, 246, 0.3)', transition: 'all 0.25s ease',
+            borderRadius: 10,
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(135deg, #60a5fa 0%, #2563eb 100%)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.45)'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(59, 130, 246, 0.3)'; }}
         >
           <Plus size={15} strokeWidth={2.5} /> New PO Upload
         </button>

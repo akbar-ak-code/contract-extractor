@@ -161,7 +161,12 @@ const App = () => {
   });
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#0a0a0a', color: '#e5e5e5', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#050508', color: '#e5e5e5', position: 'relative' }}>
+      
+      {/* Floating blurred blobs in background */}
+      <div style={{ position: 'fixed', top: '-10%', left: '-10%', width: '45%', height: '45%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,102,241,0.08) 0%, rgba(99,102,241,0) 70%)', filter: 'blur(80px)', pointerEvents: 'none', zIndex: 0 }} />
+      <div style={{ position: 'fixed', bottom: '-15%', right: '-15%', width: '55%', height: '55%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.06) 0%, rgba(139,92,246,0) 70%)', filter: 'blur(100px)', pointerEvents: 'none', zIndex: 0 }} />
+      <div style={{ position: 'fixed', top: '35%', left: '45%', width: '35%', height: '35%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(16,185,129,0.03) 0%, rgba(16,185,129,0) 70%)', filter: 'blur(90px)', pointerEvents: 'none', zIndex: 0 }} />
 
       {/* Left sidebar */}
       <Sidebar
@@ -182,8 +187,9 @@ const App = () => {
         flex: 1, minWidth: 480,
         display: 'flex', flexDirection: 'column',
         overflowY: 'auto', overflowX: 'hidden',
-        background: 'linear-gradient(135deg, #101012 0%, #0d0d0f 50%, #0a0a0c 100%)',
+        background: 'transparent',
         padding: '28px 40px',
+        zIndex: 1,
       }}>
         <header style={{ marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
@@ -254,7 +260,7 @@ const App = () => {
             onClick={() => setActiveSource(null)}
             style={{
               position: 'fixed', inset: 0, zIndex: 40,
-              background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(1px)',
+              background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)',
               animation: 'fadeIn 0.2s ease',
             }}
           />

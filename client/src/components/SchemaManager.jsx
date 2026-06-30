@@ -7,20 +7,20 @@ import {
 
 // ── Colours / tokens ──────────────────────────────────────────────────────
 const C = {
-  bg:      '#141416',
-  card:    '#1a1a1d',
-  border:  'rgba(255,255,255,0.06)',
-  borderH: 'rgba(255,255,255,0.12)',
+  bg:      'transparent',
+  card:    'rgba(255,255,255,0.02)',
+  border:  'rgba(255,255,255,0.08)',
+  borderH: 'rgba(99,102,241,0.25)',
   text:    '#e4e4e7',
-  muted:   '#71717a',
-  faint:   '#3f3f46',
-  blue:    '#60a5fa',
-  blueB:   'rgba(59,130,246,0.12)',
-  green:   '#34d399',
-  greenB:  'rgba(52,211,153,0.1)',
-  red:     '#f87171',
+  muted:   '#888888',
+  faint:   '#52525b',
+  blue:    '#6366F1',
+  blueB:   'rgba(99,102,241,0.1)',
+  green:   '#10b981',
+  greenB:  'rgba(16,185,129,0.1)',
+  red:     '#ef4444',
   redB:    'rgba(239,68,68,0.1)',
-  orange:  '#fb923c',
+  orange:  '#f59e0b',
 };
 
 const BUILT_IN = [
@@ -38,54 +38,47 @@ const BUILT_IN = [
 
 // ── Small reusable input ──────────────────────────────────────────────────
 const Field = ({ label, value, onChange, placeholder, multiline, hint }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-    <label style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: C.muted }}>
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <label style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888888' }}>
       {label}
     </label>
     {multiline ? (
       <textarea
         value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
         rows={3}
+        className="glass-input"
         style={{
-          background: '#111', border: `1px solid ${C.border}`, borderRadius: 8,
-          padding: '9px 12px', fontSize: 13, color: C.text, outline: 'none',
-          resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box', width: '100%',
-          fontFamily: 'inherit',
+          resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box', width: '100%'
         }}
-        onFocus={e => e.target.style.borderColor = 'rgba(59,130,246,0.5)'}
-        onBlur={e => e.target.style.borderColor = C.border}
       />
     ) : (
       <input
         value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+        className="glass-input"
         style={{
-          background: '#111', border: `1px solid ${C.border}`, borderRadius: 8,
-          padding: '9px 12px', fontSize: 13, color: C.text, outline: 'none',
-          boxSizing: 'border-box', width: '100%', fontFamily: 'inherit',
+          boxSizing: 'border-box', width: '100%'
         }}
-        onFocus={e => e.target.style.borderColor = 'rgba(59,130,246,0.5)'}
-        onBlur={e => e.target.style.borderColor = C.border}
       />
     )}
-    {hint && <p style={{ margin: 0, fontSize: 11, color: C.faint, lineHeight: 1.5 }}>{hint}</p>}
+    {hint && <p style={{ margin: 0, fontSize: 11, color: '#52525b', lineHeight: 1.5 }}>{hint}</p>}
   </div>
 );
 
 // ── Toast notification ────────────────────────────────────────────────────
 const Toast = ({ msg, type }) => {
   if (!msg) return null;
-  const bg  = type === 'error' ? C.redB   : C.greenB;
-  const col = type === 'error' ? C.red    : C.green;
-  const bdr = type === 'error' ? 'rgba(239,68,68,0.3)' : 'rgba(52,211,153,0.3)';
+  const icon = type === 'error' ? '❌' : '✅';
   return (
-    <div style={{
+    <div className="glass-panel animate-in fade-in slide-in-from-bottom duration-300" style={{
       position: 'fixed', bottom: 28, right: 28, zIndex: 999,
-      background: bg, border: `1px solid ${bdr}`, borderRadius: 10,
-      padding: '11px 18px', color: col, fontSize: 13, fontWeight: 500,
-      boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-      animation: 'fadeIn 0.2s ease',
+      borderRadius: 12,
+      padding: '12px 20px', color: '#ffffff', fontSize: 13, fontWeight: 500,
+      display: 'flex', alignItems: 'center', gap: 8,
+      boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+      border: `1px solid ${type === 'error' ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'}`,
     }}>
-      {msg}
+      <span>{icon}</span>
+      <span>{msg}</span>
     </div>
   );
 };
@@ -115,11 +108,10 @@ const CustomFieldCard = ({ field, onDelete, onUpdate, poCount }) => {
   };
 
   return (
-    <div style={{
-      borderRadius: 12, border: `1px solid ${editing ? 'rgba(59,130,246,0.35)' : C.border}`,
-      background: C.card, overflow: 'hidden',
-      boxShadow: editing ? '0 0 0 3px rgba(59,130,246,0.08)' : 'none',
-      transition: 'border-color 0.15s, box-shadow 0.15s',
+    <div className="glass-card" style={{
+      overflow: 'hidden',
+      borderColor: editing ? 'rgba(99, 102, 241, 0.35)' : 'rgba(255, 255, 255, 0.08)',
+      boxShadow: editing ? '0 0 0 3px rgba(99, 102, 241, 0.08)' : 'none',
     }}>
       {/* Card header */}
       <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -134,7 +126,8 @@ const CustomFieldCard = ({ field, onDelete, onUpdate, poCount }) => {
         <div style={{ flex: 1, minWidth: 0 }}>
           {editing ? (
             <input value={name} onChange={e => setName(e.target.value)}
-              style={{ background: '#111', border: `1px solid rgba(59,130,246,0.4)`, borderRadius: 6, padding: '4px 8px', fontSize: 14, color: C.text, outline: 'none', fontWeight: 600, width: '100%', boxSizing: 'border-box' }} />
+              className="glass-input"
+              style={{ padding: '4px 8px', fontSize: 14, outline: 'none', fontWeight: 600, width: '100%', boxSizing: 'border-box', minHeight: 'unset' }} />
           ) : (
             <div style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{field.name}</div>
           )}
@@ -246,10 +239,8 @@ const AddFieldForm = ({ onAdd, onCancel }) => {
     setSaving(false);
   };
 
-  const valid = name.trim() && key.trim() && desc.trim();
-
   return (
-    <div style={{ borderRadius: 14, border: `1px solid rgba(59,130,246,0.35)`, background: C.card, padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 16, boxShadow: '0 0 0 4px rgba(59,130,246,0.07)' }}>
+    <div className="glass-card" style={{ border: `1px solid rgba(99,102,241,0.35)`, padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 16, boxShadow: '0 0 0 4px rgba(99,102,241,0.07)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 2 }}>
         <div style={{ width: 28, height: 28, borderRadius: 7, background: C.blueB, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Plus size={14} color={C.blue} />
@@ -266,9 +257,8 @@ const AddFieldForm = ({ onAdd, onCancel }) => {
         <input value={key}
           onChange={e => { setKey(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')); setKeyManual(true); }}
           placeholder="warranty_period"
-          style={{ background: '#111', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', fontSize: 13, color: '#a78bfa', outline: 'none', fontFamily: 'monospace', boxSizing: 'border-box', width: '100%' }}
-          onFocus={e => e.target.style.borderColor = 'rgba(59,130,246,0.5)'}
-          onBlur={e => e.target.style.borderColor = C.border}
+          className="glass-input"
+          style={{ fontFamily: 'monospace', boxSizing: 'border-box', width: '100%', color: '#a78bfa', minHeight: 'unset', padding: '8px 12px' }}
         />
       </div>
 
@@ -283,18 +273,14 @@ const AddFieldForm = ({ onAdd, onCancel }) => {
       />
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={onCancel}
-          style={{ padding: '8px 18px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', fontSize: 13 }}>
+        <button onClick={onCancel} className="glass-btn-secondary" style={{ padding: '8px 18px', fontSize: 13 }}>
           Cancel
         </button>
         <button onClick={handleSubmit} disabled={!valid || saving}
+          className={valid ? "glass-btn-primary" : ""}
           style={{
-            padding: '8px 22px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: valid && !saving ? 'pointer' : 'default',
-            background: valid ? 'linear-gradient(to bottom, #3b82f6, #2563eb)' : 'rgba(59,130,246,0.2)',
-            color: valid ? '#fff' : C.faint, border: 'none',
+            padding: '8px 22px', fontSize: 13, fontWeight: 600, cursor: valid && !saving ? 'pointer' : 'default',
             display: 'flex', alignItems: 'center', gap: 7,
-            boxShadow: valid ? '0 2px 12px rgba(59,130,246,0.35)' : 'none',
-            transition: 'all 0.15s',
           }}>
           {saving ? <RefreshCw size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Sparkles size={13} />}
           {saving ? 'Extracting from all POs…' : 'Add & Extract'}
@@ -379,13 +365,9 @@ const SchemaManager = ({ poCount }) => {
           </p>
         </div>
         <button onClick={() => setShowAdd(s => !s)}
+          className={showAdd ? "glass-btn-secondary" : "glass-btn-primary"}
           style={{
-            flexShrink: 0, padding: '9px 18px', borderRadius: 10, border: 'none', cursor: 'pointer',
-            background: showAdd ? 'rgba(255,255,255,0.06)' : 'linear-gradient(to bottom, #3b82f6, #2563eb)',
-            color: showAdd ? C.muted : '#fff', fontSize: 13, fontWeight: 600,
-            display: 'flex', alignItems: 'center', gap: 7,
-            boxShadow: showAdd ? 'none' : '0 2px 14px rgba(59,130,246,0.35)',
-            transition: 'all 0.15s',
+            flexShrink: 0, padding: '9px 18px', fontSize: 13, fontWeight: 600,
           }}>
           {showAdd ? <X size={14} /> : <Plus size={14} />}
           {showAdd ? 'Cancel' : 'Add Custom Field'}
@@ -406,10 +388,10 @@ const SchemaManager = ({ poCount }) => {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
           {BUILT_IN.map(f => (
-            <div key={f.key} style={{
-              padding: '10px 14px', borderRadius: 9,
-              background: 'rgba(255,255,255,0.02)', border: `1px solid ${C.border}`,
+            <div key={f.key} className="glass-card" style={{
+              padding: '10px 14px',
               display: 'flex', alignItems: 'center', gap: 8,
+              borderRadius: 10,
             }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.faint, flexShrink: 0 }} />
               <div>
