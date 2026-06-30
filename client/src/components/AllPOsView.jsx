@@ -105,7 +105,7 @@ const AllPOsView = ({ history, onLoadPO, onDeletePO }) => {
 
       {/* Search filter input */}
       <div style={{ position: 'relative' }}>
-        <Search size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255, 255, 255, 0.4)', pointerEvents: 'none', zIndex: 1 }} />
+        <Search size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255, 255, 255, 0.4)', pointerEvents: 'none', zIndex: 1 }} />
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
@@ -114,6 +114,7 @@ const AllPOsView = ({ history, onLoadPO, onDeletePO }) => {
           style={{
             width: '100%', boxSizing: 'border-box',
             paddingLeft: '38px',
+            height:"3rem"
           }}
         />
         {search && (

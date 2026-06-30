@@ -20,6 +20,7 @@ const App = () => {
   const [customFields, setCustomFields] = useState([]);
   const [activeSource, setActiveSource] = useState(null);
   const [activeTab, setActiveTab] = useState('calendar');
+  const [scrollToField, setScrollToField] = useState(null);
 
   const fileInputRef = useRef(null);
 
@@ -39,17 +40,20 @@ const App = () => {
     } catch (err) { console.error("Failed to load schema", err); }
   };
 
-  const loadPastPO = async (id) => {
+  const loadPastPO = async (id, fieldKey = null) => {
     setLoading(true);
     setResult(null);
     setActiveSource(null);
     setActiveTab('extraction');
+    setScrollToField(null);
     try {
       const res = await fetch(`http://localhost:8000/api/pos/${id}`);
       const data = await res.json();
       setResult(data.extraction_result.profile);
       setFile({ name: data.filename });
       setDbId(data.db_id);
+      // Set after the new result has rendered so ExtractionView has the row to scroll to.
+      if (fieldKey) setScrollToField(fieldKey);
     } catch (err) {
       setError("Failed to load PO details.");
     } finally {
@@ -146,7 +150,7 @@ const App = () => {
     { id: 'calendar',   label: 'Deadlines',  Icon: CalendarIcon },
     { id: 'all',        label: 'All POs',    Icon: LayoutList   },
     { id: 'extraction', label: 'Extraction', Icon: FileText     },
-    { id: 'schema',     label: 'Schema',     Icon: Settings2    },
+    
   ];
 
   const tabBtn = (active) => ({
@@ -213,7 +217,7 @@ const App = () => {
 
         <div style={{ flex: 1 }}>
           {activeTab === 'calendar' && (
-            <CalendarView history={history} onSelectEvent={loadPastPO} />
+            <CalendarView onSelectEvent={loadPastPO} />
           )}
           {activeTab === 'all' && (
             <AllPOsView
@@ -240,6 +244,8 @@ const App = () => {
               dbId={dbId}
               onUpdate={handleFieldUpdate}
               customFields={customFields}
+              scrollToField={scrollToField}
+              onScrollToFieldDone={() => setScrollToField(null)}
             />
           )}
         </div>
