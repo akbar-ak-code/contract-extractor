@@ -1,89 +1,330 @@
-# Contract-Extractor
+<div align="center">
 
-## What does this project do?
-This project is a hybrid full-stack microservice that automatically extracts core metadata from legal contracts using intelligent semantic routing. It optimizes speed and accuracy by directing complex structural clauses to a cloud generative AI (Gemini 3.5 Flash) while parsing strict temporal data locally using an extractive model (RoBERTa).
+# 📄 Contract Extractor
 
-## What are the prerequisites?
-To run this project locally, you will need:
-* **Python:** Version 3.10 or higher.
-* **Node.js:** Installed to run the frontend client.
-* **Gemini API Key:** Required for the cloud generative routing. 
-  * *How to get it:* Go to [Google AI Studio](https://aistudio.google.com/), sign in with a Google account, and click "Get API key" to generate a free token.
+### AI-Powered Legal Contract Analysis using Gemini + RoBERTa
 
-## How do I install it?
-Run the following exact commands in your terminal to set up the complete monorepo:
+Extract key legal clauses, contract metadata, and important information from contracts with a Hybrid AI Pipeline.
 
-bash
-# 1. Clone the repository
-git clone [https://github.com/akbar-ak-code/contract-extractor.git](https://github.com/akbar-ak-code/contract-extractor.git)
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite)
+![Gemini](https://img.shields.io/badge/Gemini-AI-4285F4?style=for-the-badge)
+![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+
+---
+
+### 🚀 Intelligent Hybrid Legal Contract Extraction
+
+</div>
+
+---
+
+# ✨ Features
+
+✅ Upload Legal Contracts (PDF)
+
+✅ Hybrid AI Pipeline
+
+✅ Gemini 2.5 Flash Integration
+
+✅ RoBERTa CUAD Legal Clause Extraction
+
+✅ Semantic Routing
+
+✅ Source Verification
+
+✅ Editable Extracted Fields
+
+✅ CSV Export
+
+✅ JSON API
+
+✅ Responsive React Dashboard
+
+✅ FastAPI Backend
+
+---
+
+# 🧠 AI Architecture
+
+```
+                     Legal Contract PDF
+                              │
+                              ▼
+                  PDF Text Extraction
+                              │
+                              ▼
+                  Intelligent AI Router
+                     ┌──────────────┐
+                     │              │
+                     ▼              ▼
+            Gemini 2.5 Flash   RoBERTa CUAD
+                     │              │
+                     └──────┬───────┘
+                            ▼
+               Combined Structured Output
+                            │
+                            ▼
+      React Dashboard • CSV Export • REST API
+```
+
+---
+
+# 📑 Supported Contracts
+
+- Employment Agreement
+- Service Agreement
+- NDA
+- Lease Agreement
+- Purchase Agreement
+- SaaS Agreement
+- Vendor Agreement
+- Licensing Agreement
+- Consulting Agreement
+- Partnership Agreement
+- Subscription Agreement
+- Supply Agreement
+
+---
+
+# 🔍 Extracted Information
+
+The system automatically extracts
+
+- Party Names
+- Effective Date
+- Expiration Date
+- Renewal Terms
+- Payment Terms
+- Governing Law
+- Termination Clause
+- Confidentiality
+- Liability
+- Penalties
+- Indemnification
+- Assignment Clause
+- Insurance
+- Notice Clause
+- Intellectual Property
+- Dispute Resolution
+
+---
+
+# ⚙️ Tech Stack
+
+| Category | Technology |
+|----------|------------|
+| Backend | FastAPI |
+| Frontend | React + Vite |
+| AI | Gemini 2.5 Flash |
+| NLP | RoBERTa (CUAD) |
+| Database | SQLAlchemy |
+| Language | Python |
+| Styling | Tailwind CSS |
+
+---
+
+# 📂 Project Structure
+
+```
+contract-extractor
+│
+├── client
+│   ├── src
+│   ├── public
+│   └── package.json
+│
+├── server
+│   ├── models
+│   ├── routes
+│   ├── services
+│   ├── evaluate
+│   ├── main.py
+│   └── requirements.txt
+│
+└── README.md
+```
+
+---
+
+# 🚀 Installation
+
+## Clone Repository
+
+```bash
+git clone https://github.com/Reyansh2312/contract_extractor.git
+
 cd contract-extractor
+```
 
-# 2. Set up the Backend
+---
+
+## Backend
+
+```bash
 cd server
+
 python -m venv venv
-# Activate Windows: .\venv\Scripts\activate | Mac/Linux: source venv/bin/activate
+```
+
+### Windows
+
+```bash
+venv\Scripts\activate
+```
+
+### Linux / Mac
+
+```bash
+source venv/bin/activate
+```
+
+Install dependencies
+
+```bash
 pip install -r requirements.txt
-echo "GEMINI_API_KEY=your_actual_api_key_here" > .env
-cd ..
+```
 
-# 3. Set up the Frontend
-cd client
+Create a `.env`
+
+```env
+GEMINI_API_KEY=YOUR_API_KEY
+```
+
+---
+
+## Frontend
+
+```bash
+cd ../client
+
 npm install
-## How do I run it on a single contract?
-You can run the full visual application by spinning up both the backend and frontend servers. 
+```
 
-Open two separate terminal windows:
-1. **In terminal 1 (Backend):** Navigate to the `server` folder, activate your `venv`, and run:
-   ```bash
-   uvicorn main:app --reload
-In terminal 2 (Frontend): Navigate to the client folder and run:
-   npm run dev
-## How do I run the benchmark evaluation?
-To run the automated bulk evaluation pipeline and generate performance matrices, navigate to your server directory (with the virtual environment activated) and run:
+---
 
-# Generates the accuracy pass/fail matrix (combined_emoji_matrix.csv)
+# ▶️ Run Project
+
+### Backend
+
+```bash
+cd server
+
+venv\Scripts\activate
+
+uvicorn main:app --reload
+```
+
+Runs on
+
+```
+http://localhost:8000
+```
+
+---
+
+### Frontend
+
+```bash
+cd client
+
+npm run dev
+```
+
+Runs on
+
+```
+http://localhost:5173
+```
+
+---
+
+# 📊 Benchmark
+
+Generate benchmark
+
+```bash
 python -m evaluate.benchmark
-# Generates the raw extracted text dataset (combined_actual_text_matrix.csv)
-python -m evaluate.benchmark_text
-## What does the output look like?
+```
 
-When the backend successfully processes a contract via the hybrid pipeline, it returns a structured JSON profile identifying both the extracted value and which model routed the answer:
-```{
-  "DYNTEKINC_07_30_1999-EX-10-ONLINE HOSTING AGREEMENT.PDF_combined_v2": {
-        "status": "success",
-        "profile": {
-            "party_names": {
-                "value": "Diplomat Direct Marketing Corporation and Tadeo E-Commerce Corp.",
-                "model_used": "Gemini-2.5-Flash"
-            },
-            "effective_date": {
-                "value": "June 1, 1999",
-                "model_used": "Gemini-2.5-Flash"
-            },
-            "expiration_date": {
-                "value": "The term of this Agreement shall begin on the date hereof (the \"Effective Date\") and shall continue for a period of 12 months thereafter (the \"Period\") in full force and effect until it is terminated in accordance with this Section 3.",
-                "model_used": "RoBERTa-CUAD"
-            },
-            "renewal": {
-                "value": "Diplomat or Tadeo, if such party is not in default of the terms of this Agreement, may extend the term of this Agreement for an additional one year (\"Additional Period\"), provided the extending party gives the other party at least sixty (60) days advance written notice before the end of the Period.",
-                "model_used": "RoBERTa-CUAD"
-            },
-            "payment_terms": {
-                "value": "Tadeo will invoice Diplomat within 15 days of the end of each month for Services rendered in such month. Diplomat will pay such invoice within 30 days of receipt. Late payments shall accrue interest at a rate equal to fifteen (15%) percent per annum.",
-                "model_used": "Gemini-2.5-Flash"
-            },
-            "termination_for_cause": {
-                "value": "Either party may terminate the agreement if the other party is in material breach (not cured within 5 days of written notice), upon bankruptcy or insolvency proceedings not dismissed within 60 days, involuntary dissolution, or judicial adjudication of insolvency.",
-                "model_used": "Gemini-2.5-Flash"
-            },
-            "governing_law": {
-                "value": "State of New York",
-                "model_used": "Gemini-2.5-Flash"
-            },
-            "penalties": {
-                "value": "The Web Agreement is terminated by any of Tadeo, Diplomat, or any other party thereto [in the event the rights and obligations of any party(ies) to such Web Agreement have been duly assigned to a third party(ies) under the terms thereof] in accordance with the terms of the Web Agreement, but not if the Web Agreement is terminated by Diplomat or its assignee(s) other than in accordance with the terms of the Web Agreement\u037e",
-                "model_used": "RoBERTa-CUAD"
-            }
-        }
+Generate extracted text matrix
+
+```bash
+python -m evaluate.benchmark_text
+```
+
+---
+
+# 📤 Sample Output
+
+```json
+{
+  "contract.pdf": {
+    "status": "success",
+    "profile": {
+      "party_names": {
+        "value": "ABC Ltd & XYZ Pvt Ltd",
+        "model_used": "Gemini-2.5-Flash"
+      },
+      "effective_date": {
+        "value": "01 January 2025",
+        "model_used": "Gemini-2.5-Flash"
+      },
+      "governing_law": {
+        "value": "State of California",
+        "model_used": "RoBERTa-CUAD"
+      }
     }
+  }
 }
+```
+
+---
+
+# 💡 Use Cases
+
+- Contract Review
+- Legal Document Analysis
+- Due Diligence
+- Enterprise Automation
+- Procurement
+- Compliance
+- Legal AI Research
+- Document Intelligence
+
+---
+
+# 📈 Future Enhancements
+
+- OCR Support
+- DOCX Support
+- Confidence Score
+- Multi-language Contracts
+- Batch Processing
+- Clause Comparison
+- Risk Analysis
+- Contract Summarization
+
+---
+
+# 🤝 Contributing
+
+Pull requests are welcome!
+
+If you'd like to improve the project, feel free to fork the repository and submit a PR.
+
+---
+
+# ⭐ Support
+
+If you found this project useful, don't forget to ⭐ the repository!
+
+---
+
+<div align="center">
+
+Made with ❤️ using FastAPI, React, Gemini AI & RoBERTa
+
+</div>
