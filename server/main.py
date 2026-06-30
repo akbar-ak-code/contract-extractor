@@ -349,11 +349,20 @@ def _split_quote_into_chunks(quote, max_chunks=25, min_words=4, min_chars=15):
 
     raw_pieces = re.split(r"(?<=[.;:])\s+|\n+", quote)
     chunks = []
+    seen = set()
     for piece in raw_pieces:
         piece = piece.strip()
         if not piece or len(piece) < min_chars or len(piece.split()) < min_words:
             continue
-        chunks.append(piece[:300])
+        piece = piece[:300]
+        # Skip duplicate sentences (e.g. Gemini sometimes repeats an amendment note
+        # verbatim within the same quote). Without this, the same text would appear
+        # as two separate "excerpts" pointing at the identical highlighted location.
+        key = re.sub(r"\s+", " ", piece).strip().lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        chunks.append(piece)
         if len(chunks) >= max_chunks:
             break
     return chunks or [quote[:300]]
