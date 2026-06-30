@@ -19,6 +19,7 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
   const [activeMatchIdx, setActiveMatchIdx] = useState(0);
   const [highlights, setHighlights] = useState([]); // [{x,y,w,h}, ...] CSS-px overlay rects
   const prevLabelRef = useRef(null);
+  const firstHighlightElRef = useRef(null);
 
   // Resolve the quote into one or more locatable chunks whenever the source changes.
   // The quote itself is untouched — this only changes how we search for it in the PDF.
@@ -121,6 +122,18 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
     compute().catch(() => { if (!cancelled) setHighlights([]); });
     return () => { cancelled = true; };
   }, [pdfDoc, pageNumber, activeMatch, scale]);
+
+  // Scroll the highlight into view once it's actually in the DOM. Using scrollIntoView
+  // on the real rendered element (rather than computing a scrollTop offset by hand)
+  // avoids coordinate-space mismatches between the highlight's position-within-page and
+  // the scroll container's own coordinate system. Runs as an effect (not inside the
+  // compute() above) so it fires only after React has committed highlights to the DOM
+  // and the ref is guaranteed to be attached - critical for excerpts that land on the
+  // same page as the previous one, where nothing else would trigger a re-scroll.
+  useEffect(() => {
+    if (highlights.length === 0) return;
+    firstHighlightElRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlights]);
 
   if (!activeSource || !dbId) return null;
 
@@ -251,6 +264,7 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
             {highlights.map((r, i) => (
               <div
                 key={i}
+                ref={i === 0 ? firstHighlightElRef : null}
                 style={{
                   position: 'absolute', left: r.x, top: r.y, width: r.w, height: r.h,
                   background: 'rgba(250,204,21,0.55)', mixBlendMode: 'multiply',
