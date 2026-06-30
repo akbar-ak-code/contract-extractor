@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { 
   UploadCloud, Hash, Building, MapPin, Clock, AlertTriangle, 
   DollarSign, Shield, List, Edit3, FileText, Sparkles, Check, X, 
-  Edit2, History, ChevronDown, ChevronUp, Calendar, Zap, ArrowRight, Save,RefreshCw
+  Edit2, History, ChevronDown, ChevronUp, Calendar, Zap, ArrowRight, Save, RefreshCw
 } from 'lucide-react';
 
 // ── TIME MATH HELPERS ──────────────────────────────────────────────────────
@@ -269,14 +269,16 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
     if (matchedKeyword && deepAnalysis?.deadlines) {
       deepAnalysis.deadlines.forEach((dl, i) => {
         const isPending = !dl.computed_date || String(dl.computed_date).toLowerCase() === 'null';
-        if (i !== idx && isPending && dl.anchor_description?.toLowerCase().includes(matchedKeyword)) {
+        // Auto-sync if the other field is pending or currently being edited
+        if (i !== idx && (isPending || newDates[i + "_edit"]) && dl.anchor_description?.toLowerCase().includes(matchedKeyword)) {
           newDates[i] = dateStr;
         }
       });
     }
     setTriggerDates(newDates);
   };
-const handleSaveDeadline = async (idx, calculatedResult) => {
+
+  const handleSaveDeadline = async (idx, calculatedResult) => {
     if (!calculatedResult) return;
     setSavingIdx(idx);
 
@@ -286,12 +288,15 @@ const handleSaveDeadline = async (idx, calculatedResult) => {
     try {
       await onUpdate(dbId, "_deep_analysis", updatedDeepAnalysis);
       result._deep_analysis.deadlines[idx].computed_date = calculatedResult;
+      // Clear the edit state upon successful save
+      setTriggerDates(prev => ({ ...prev, [idx + "_edit"]: false }));
     } catch (e) {
       console.error("Failed to save deadline", e);
     }
     
     setSavingIdx(null);
   };
+
   return (
     <div className="animate-in fade-in duration-500">
       {!result ? (
@@ -312,102 +317,7 @@ const handleSaveDeadline = async (idx, calculatedResult) => {
       ) : (
         <div className="flex flex-col gap-5">
           
-          {hasAnomalies && (
-            <Card title="Detected Anomalies & Risks" icon={<AlertTriangle size={13} className="text-red-400"/>} borderColor="border-red-500/30" headerBg="bg-red-500/10">
-              <div className="p-4 flex flex-col gap-3">
-                {deepAnalysis.anomalies.map((an, i) => (
-                  <div key={i} className="rounded-lg border border-red-500/20 bg-red-500/5 p-4 text-red-200 flex items-start gap-3">
-                    <AlertTriangle size={16} className="text-red-400 shrink-0 mt-0.5" />
-                    <div>
-                      <div className="font-semibold text-sm mb-1 text-red-400">{an.type}</div>
-                      <div className="text-sm opacity-90">{an.description} <span className="opacity-75 text-xs ml-1">(Page {an.page})</span></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {/* ── DEADLINES CARD WITH INTERACTIVE CALCULATOR ── */}
-          {hasDeadlines && (
-            <Card title="Contract Deadlines & Milestones" icon={<Calendar size={13} className="text-orange-400"/>}>
-              <div className="p-4 flex flex-col gap-3">
-                {deepAnalysis.deadlines.map((dl, i) => {
-                  const isNull = !dl.computed_date || String(dl.computed_date).toLowerCase() === 'null';
-                  const baseDateInput = triggerDates[i] || '';
-                  const offset = isNull ? parseAnchor(dl.anchor_description) : null;
-                  const calculatedResult = offset ? addTime(baseDateInput, offset) : null;
-
-                  return (
-                    <div key={i} className="rounded-lg border border-white/5 bg-white/[0.02] p-4 flex flex-col gap-3">
-                      
-                      <div className="flex justify-between items-start">
-                        <div className="font-semibold text-zinc-200 text-sm">{dl.label}</div>
-                        {!isNull ? (
-                          <div className="text-xs font-mono px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.1)]">
-                            {dl.computed_date}
-                          </div>
-                        ) : (
-                          <div className="text-[10px] font-semibold tracking-wider uppercase px-2 py-1 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
-                            Awaiting Trigger
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="text-xs text-zinc-400 flex items-center gap-2">
-                        <span className="uppercase tracking-wider text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-zinc-300">
-                          {dl.anchor_type}
-                        </span>
-                        {dl.anchor_description}
-                      </div>
-
-                      {/* Interactive Calculator UI for Null Deadlines */}
-                      {isNull && (
-                        <div className="mt-2 flex items-center gap-3 p-3 rounded-md bg-black/40 border border-white/[0.03]">
-                          <div className="flex flex-col gap-1 w-[160px]">
-                            <label className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">Trigger Date</label>
-                            <input 
-                              type="date" 
-                              value={baseDateInput}
-                              onChange={(e) => handleTriggerChange(i, e.target.value, dl.anchor_description)}
-                              className="bg-[#1a1a1d] border border-white/10 rounded px-2 py-1.5 text-xs text-zinc-300 outline-none focus:border-blue-500/50"
-                              style={{ colorScheme: 'dark' }}
-                            />
-                          </div>
-
-                          <ArrowRight size={14} className="text-zinc-600 mt-4" />
-
-                          <div className="flex flex-col gap-1 flex-1">
-                            <label className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">
-                              Calculated Offset {offset ? `(+${offset.amount} ${offset.unit}s)` : '(Manual)'}
-                            </label>
-                            <div className="flex items-center gap-2">
-                              <div className={`px-3 py-1.5 rounded text-xs font-mono border ${calculatedResult ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-zinc-900 border-zinc-800 text-zinc-600'}`}>
-                                {calculatedResult || 'YYYY-MM-DD'}
-                              </div>
-                              
-                              {calculatedResult && (
-                               <button 
-  onClick={() => handleSaveDeadline(i, calculatedResult)}
-  disabled={savingIdx === i}
-  title="Save this calculated date"
-  className="p-1.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
->
-  {savingIdx === i ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-</button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          )}
-
+          {/* ── 1. Document Headers ── */}
           <Card title="Document Headers" icon={<FileText size={13} />}>
             <ProfileRow icon={<Hash size={14} />} label="PO Number" fieldKey="po_number" data={result.po_number} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
             <ProfileRow icon={<Building size={14} />} label="Vendor Name" fieldKey="vendor_name" data={result.vendor_name} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
@@ -417,15 +327,18 @@ const handleSaveDeadline = async (idx, calculatedResult) => {
             <ProfileRow icon={<DollarSign size={14} />} label="Total Value" fieldKey="total_value" data={result.total_value} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
           </Card>
 
+          {/* ── 2. Terms & Conditions ── */}
           <Card title="Terms & Conditions" icon={<Shield size={13} />}>
             <ProfileRow icon={<Shield size={14} />} label="Conditions" fieldKey="conditions_of_agreement" data={result.conditions_of_agreement} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
             <ProfileRow icon={<DollarSign size={14} />} label="Payment Terms" fieldKey="conditions_of_payment" data={result.conditions_of_payment} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
           </Card>
 
+          {/* ── 3. Signatures ── */}
           <Card title="Signatures" icon={<Edit3 size={13} />}>
             <ProfileRow icon={<Edit3 size={14} />} label="Signatory" fieldKey="authorising_signatory" data={result.authorising_signatory} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
           </Card>
 
+          {/* ── 4. Global Custom Fields ── */}
           {customFields && customFields.length > 0 && (
             <Card title="Global Custom Fields" icon={<Sparkles size={13} />}>
               {customFields.map(cf => (
@@ -434,6 +347,7 @@ const handleSaveDeadline = async (idx, calculatedResult) => {
             </Card>
           )}
 
+          {/* ── 5. PO-Specific Attributes ── */}
           {hasRawFields && (
             <Card title="PO-Specific Attributes" icon={<Zap size={13} className="text-yellow-400"/>}>
               <div className="flex flex-col">
@@ -447,6 +361,7 @@ const handleSaveDeadline = async (idx, calculatedResult) => {
             </Card>
           )}
 
+          {/* ── 6. Line Items ── */}
           <Card title="Line Items" icon={<List size={13} />}>
             <div className="p-5">
               {(() => {
@@ -483,6 +398,125 @@ const handleSaveDeadline = async (idx, calculatedResult) => {
               })()}
             </div>
           </Card>
+
+          {/* ── 7. Detected Anomalies & Risks ── */}
+          {hasAnomalies && (
+            <Card title="Detected Anomalies & Risks" icon={<AlertTriangle size={13} className="text-red-400"/>} borderColor="border-red-500/30" headerBg="bg-red-500/10">
+              <div className="p-4 flex flex-col gap-3">
+                {deepAnalysis.anomalies.map((an, i) => (
+                  <div key={i} className="rounded-lg border border-red-500/20 bg-red-500/5 p-4 text-red-200 flex items-start gap-3">
+                    <AlertTriangle size={16} className="text-red-400 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-semibold text-sm mb-1 text-red-400">{an.type}</div>
+                      <div className="text-sm opacity-90">{an.description} <span className="opacity-75 text-xs ml-1">(Page {an.page})</span></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* ── 8. Contract Deadlines & Milestones ── */}
+          {hasDeadlines && (
+            <Card title="Contract Deadlines & Milestones" icon={<Calendar size={13} className="text-orange-400"/>}>
+              <div className="p-4 flex flex-col gap-3">
+                {deepAnalysis.deadlines.map((dl, i) => {
+                  const isNull = !dl.computed_date || String(dl.computed_date).toLowerCase() === 'null';
+                  const isEditing = triggerDates[i + "_edit"];
+                  const showCalculator = isNull || isEditing;
+                  const baseDateInput = triggerDates[i] || '';
+                  const offset = showCalculator ? parseAnchor(dl.anchor_description) : null;
+                  const calculatedResult = offset ? addTime(baseDateInput, offset) : null;
+
+                  return (
+                    <div key={i} className="rounded-lg border border-white/5 bg-white/[0.02] p-4 flex flex-col gap-3">
+                      
+                      <div className="flex justify-between items-start">
+                        <div className="font-semibold text-zinc-200 text-sm">{dl.label}</div>
+                        
+                        {!isNull && !isEditing ? (
+                          <div className="flex items-center gap-2">
+                            <div className="text-xs font-mono px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.1)]">
+                              {dl.computed_date}
+                            </div>
+                            <button 
+                              onClick={() => setTriggerDates(prev => ({...prev, [i + "_edit"]: true}))}
+                              className="p-1 text-zinc-500 hover:text-blue-400 transition-colors"
+                              title="Edit Date"
+                            >
+                              <Edit2 size={12} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="text-[10px] font-semibold tracking-wider uppercase px-2 py-1 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+                            {isEditing ? "Editing Trigger..." : "Awaiting Trigger"}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="text-xs text-zinc-400 flex items-center gap-2">
+                        <span className="uppercase tracking-wider text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-zinc-300">
+                          {dl.anchor_type}
+                        </span>
+                        {dl.anchor_description}
+                      </div>
+
+                      {/* Interactive Calculator UI */}
+                      {showCalculator && (
+                        <div className="mt-2 flex items-center gap-3 p-3 rounded-md bg-black/40 border border-white/[0.03]">
+                          <div className="flex flex-col gap-1 w-[160px]">
+                            <label className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">Trigger Date</label>
+                            <input 
+                              type="date" 
+                              value={baseDateInput}
+                              onChange={(e) => handleTriggerChange(i, e.target.value, dl.anchor_description)}
+                              className="bg-[#1a1a1d] border border-white/10 rounded px-2 py-1.5 text-xs text-zinc-300 outline-none focus:border-blue-500/50"
+                              style={{ colorScheme: 'dark' }}
+                            />
+                          </div>
+
+                          <ArrowRight size={14} className="text-zinc-600 mt-4" />
+
+                          <div className="flex flex-col gap-1 flex-1">
+                            <label className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">
+                              Calculated Offset {offset ? `(+${offset.amount} ${offset.unit}s)` : '(Manual)'}
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <div className={`px-3 py-1.5 rounded text-xs font-mono border ${calculatedResult ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-zinc-900 border-zinc-800 text-zinc-600'}`}>
+                                {calculatedResult || 'YYYY-MM-DD'}
+                              </div>
+                              
+                              {calculatedResult && (
+                               <button 
+                                  onClick={() => handleSaveDeadline(i, calculatedResult)}
+                                  disabled={savingIdx === i}
+                                  title="Save this calculated date"
+                                  className="p-1.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+                                >
+                                  {savingIdx === i ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                                </button>
+                              )}
+                              
+                              {isEditing && (
+                                <button 
+                                  onClick={() => setTriggerDates(prev => ({...prev, [i + "_edit"]: false}))}
+                                  title="Cancel Editing"
+                                  className="p-1.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors"
+                                >
+                                  <X size={14} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
         </div>
       )}
     </div>

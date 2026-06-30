@@ -1,330 +1,66 @@
-<div align="center">
-
 # 📄 Contract Extractor
 
-### AI-Powered Legal Contract Analysis using Gemini + RoBERTa
-
-Extract key legal clauses, contract metadata, and important information from contracts with a Hybrid AI Pipeline.
-
-![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
-![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react)
-![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite)
-![Gemini](https://img.shields.io/badge/Gemini-AI-4285F4?style=for-the-badge)
-![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+An end-to-end, full-stack application designed to ingest, analyze, and extract structured data from complex Purchase Order (PO) and contract PDFs. This system utilizes a highly resilient **Hybrid AI Cascade Extraction Pipeline** (Gemini 2.5 Flash → Groq Llama-4 Scout → Regex Fallback) to guarantee data extraction accuracy, coupled with a sleek React frontend that allows users to visually verify AI-extracted fields directly against the source document.
 
 ---
 
-### 🚀 Intelligent Hybrid Legal Contract Extraction
+## ✨ Key Features
 
-</div>
-
----
-
-# ✨ Features
-
-✅ Upload Legal Contracts (PDF)
-
-✅ Hybrid AI Pipeline
-
-✅ Gemini 2.5 Flash Integration
-
-✅ RoBERTa CUAD Legal Clause Extraction
-
-✅ Semantic Routing
-
-✅ Source Verification
-
-✅ Editable Extracted Fields
-
-✅ CSV Export
-
-✅ JSON API
-
-✅ Responsive React Dashboard
-
-✅ FastAPI Backend
+* **🧠 Hybrid AI Cascade Pipeline:** Prioritizes Gemini 2.5 Flash for initial extraction. If it fails, falls back to Groq's Llama-4 Scout, and finally relies on robust Regex patterns for ultimate fault tolerance.
+* **🔍 Deep Contract Analysis:** A secondary AI pass dedicated to identifying complex project deadlines, payment obligations, missing clauses (anomalies), and generating PO-specific dynamic fields.
+* **🎯 Source Verification Engine:** Click on any extracted field to open a React-PDF viewer that uses a sliding-window text-matching algorithm to highlight the exact clause, sentence, or word the AI used to extract the data.
+* **⏱️ Interactive Deadline Calculator:** Automatically calculates contract deadlines based on relative anchors (e.g., "30 days after invoice"). Unresolved triggers can be manually adjusted via an interactive UI.
+* **⚙️ Dynamic Custom Schema Management:** Administrators can define new custom fields globally. The system will retroactively back-fill this new data across all previously processed documents.
+* **📊 Tabular Line Item Extraction:** Extracts complex tabular data while preserving row integrity via intelligent, page-level PDF chunking using PyMuPDF.
+* **📅 Calendar Dashboard:** A centralized calendar view mapping out all upcoming contract expiry dates and critical milestones across the enterprise.
 
 ---
 
-# 🧠 AI Architecture
+## 🛠️ Architecture & Tech Stack
 
-```
-                     Legal Contract PDF
-                              │
-                              ▼
-                  PDF Text Extraction
-                              │
-                              ▼
-                  Intelligent AI Router
-                     ┌──────────────┐
-                     │              │
-                     ▼              ▼
-            Gemini 2.5 Flash   RoBERTa CUAD
-                     │              │
-                     └──────┬───────┘
-                            ▼
-               Combined Structured Output
-                            │
-                            ▼
-      React Dashboard • CSV Export • REST API
-```
+### Backend (Python)
+| Technology | Purpose |
+| :--- | :--- |
+| **FastAPI** | High-performance asynchronous API framework for handling uploads and CRUD operations. |
+| **SQLAlchemy (SQLite)** | Database ORM. DB is stored locally at `./data/po_database.db`. |
+| **PyMuPDF (fitz)** | Rapid, page-level PDF text extraction to preserve tabular data structures. |
+| **Google GenAI SDK** | Primary extraction engine using `gemini-2.5-flash` with strict JSON schema enforcement. |
+| **Groq SDK** | Fallback extraction engine using `meta-llama/llama-4-scout-17b-16e-instruct`. |
+
+### Frontend (React)
+| Technology | Purpose |
+| :--- | :--- |
+| **React** | Component-based UI architecture. |
+| **React-PDF** | Renders uploaded PDFs directly in the browser for visual source verification. |
+| **React-Big-Calendar** | Visualizes extracted contract dates and deadlines. |
+| **Lucide React** | Consistent, modern iconography. |
+| **Tailwind CSS** | Utility-first styling for complex, responsive dashboards. |
 
 ---
 
-# 📑 Supported Contracts
+## 📂 Project Structure
 
-- Employment Agreement
-- Service Agreement
-- NDA
-- Lease Agreement
-- Purchase Agreement
-- SaaS Agreement
-- Vendor Agreement
-- Licensing Agreement
-- Consulting Agreement
-- Partnership Agreement
-- Subscription Agreement
-- Supply Agreement
-
----
-
-# 🔍 Extracted Information
-
-The system automatically extracts
-
-- Party Names
-- Effective Date
-- Expiration Date
-- Renewal Terms
-- Payment Terms
-- Governing Law
-- Termination Clause
-- Confidentiality
-- Liability
-- Penalties
-- Indemnification
-- Assignment Clause
-- Insurance
-- Notice Clause
-- Intellectual Property
-- Dispute Resolution
-
----
-
-# ⚙️ Tech Stack
-
-| Category | Technology |
-|----------|------------|
-| Backend | FastAPI |
-| Frontend | React + Vite |
-| AI | Gemini 2.5 Flash |
-| NLP | RoBERTa (CUAD) |
-| Database | SQLAlchemy |
-| Language | Python |
-| Styling | Tailwind CSS |
-
----
-
-# 📂 Project Structure
-
-```
-contract-extractor
+```text
+contract-extractor/
+├── backend/
+│   ├── main.py                  # FastAPI application entry point
+│   ├── requirements.txt         # Python dependencies
+│   ├── .env                     # API Keys (Gemini, Groq)
+│   ├── database/
+│   │   ├── connection.py        # SQLite engine & session configuration
+│   │   └── models.py            # SQLAlchemy PurchaseOrderRecord schema
+│   ├── extractor/
+│   │   ├── config.py            # System configuration & field mappings
+│   │   ├── extraction.py        # Core AI Cascade (Gemini -> Groq -> Regex)
+│   │   └── ingestion.py         # PyMuPDF chunking logic
+│   ├── data/                    # Generated automatically
+│   │   ├── po_database.db       # Local SQLite Database
+│   │   └── custom_fields.json   # Dynamic schema configurations
+│   └── document_storage/        # Local storage for uploaded PDF files
 │
-├── client
-│   ├── src
-│   ├── public
-│   └── package.json
-│
-├── server
-│   ├── models
-│   ├── routes
-│   ├── services
-│   ├── evaluate
-│   ├── main.py
-│   └── requirements.txt
-│
-└── README.md
-```
-
----
-
-# 🚀 Installation
-
-## Clone Repository
-
-```bash
-git clone https://github.com/Reyansh2312/contract_extractor.git
-
-cd contract-extractor
-```
-
----
-
-## Backend
-
-```bash
-cd server
-
-python -m venv venv
-```
-
-### Windows
-
-```bash
-venv\Scripts\activate
-```
-
-### Linux / Mac
-
-```bash
-source venv/bin/activate
-```
-
-Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-Create a `.env`
-
-```env
-GEMINI_API_KEY=YOUR_API_KEY
-```
-
----
-
-## Frontend
-
-```bash
-cd ../client
-
-npm install
-```
-
----
-
-# ▶️ Run Project
-
-### Backend
-
-```bash
-cd server
-
-venv\Scripts\activate
-
-uvicorn main:app --reload
-```
-
-Runs on
-
-```
-http://localhost:8000
-```
-
----
-
-### Frontend
-
-```bash
-cd client
-
-npm run dev
-```
-
-Runs on
-
-```
-http://localhost:5173
-```
-
----
-
-# 📊 Benchmark
-
-Generate benchmark
-
-```bash
-python -m evaluate.benchmark
-```
-
-Generate extracted text matrix
-
-```bash
-python -m evaluate.benchmark_text
-```
-
----
-
-# 📤 Sample Output
-
-```json
-{
-  "contract.pdf": {
-    "status": "success",
-    "profile": {
-      "party_names": {
-        "value": "ABC Ltd & XYZ Pvt Ltd",
-        "model_used": "Gemini-2.5-Flash"
-      },
-      "effective_date": {
-        "value": "01 January 2025",
-        "model_used": "Gemini-2.5-Flash"
-      },
-      "governing_law": {
-        "value": "State of California",
-        "model_used": "RoBERTa-CUAD"
-      }
-    }
-  }
-}
-```
-
----
-
-# 💡 Use Cases
-
-- Contract Review
-- Legal Document Analysis
-- Due Diligence
-- Enterprise Automation
-- Procurement
-- Compliance
-- Legal AI Research
-- Document Intelligence
-
----
-
-# 📈 Future Enhancements
-
-- OCR Support
-- DOCX Support
-- Confidence Score
-- Multi-language Contracts
-- Batch Processing
-- Clause Comparison
-- Risk Analysis
-- Contract Summarization
-
----
-
-# 🤝 Contributing
-
-Pull requests are welcome!
-
-If you'd like to improve the project, feel free to fork the repository and submit a PR.
-
----
-
-# ⭐ Support
-
-If you found this project useful, don't forget to ⭐ the repository!
-
----
-
-<div align="center">
-
-Made with ❤️ using FastAPI, React, Gemini AI & RoBERTa
-
-</div>
+└── frontend/
+    ├── package.json
+    └── src/
+        ├── App.jsx              # Main React dashboard shell
+        ├── components/          # ExtractionView, CalendarView, SourceSidebar, etc.
+        └── utils/               # Date parsing and UI helpers
