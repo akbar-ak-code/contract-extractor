@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Shield, X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -6,12 +6,18 @@ import 'react-pdf/dist/Page/TextLayer.css';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
+// Splits text into lowercase word tokens, same convention used on the backend
+// (whitespace/punctuation-insensitive) so word boundaries match consistently.
+const wordize = (s) => (s || "").toLowerCase().match(/[a-z0-9]+/g) || [];
+
 const SourceSidebar = ({ activeSource, onClose, dbId }) => {
+  const [pdfDoc, setPdfDoc] = useState(null);        // raw pdf.js PDFDocumentProxy
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [scale, setScale] = useState(1.0);
   const [matches, setMatches] = useState([]);       // [{quote, page}, ...] resolved chunks
   const [activeMatchIdx, setActiveMatchIdx] = useState(0);
+  const [highlights, setHighlights] = useState([]); // [{x,y,w,h}, ...] CSS-px overlay rects
   const prevLabelRef = useRef(null);
 
   // Resolve the quote into one or more locatable chunks whenever the source changes.
@@ -50,39 +56,68 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
     setPageNumber(matches[idx].page);
   }
 
-  // Highlights the currently active match's short chunk on the current page — far more
-  // reliable than searching for the entire original quote, since each chunk has already
-  // been confirmed to exist on this specific page by the backend.
-  const textRenderer = useCallback(
-    (textItem) => {
-      const quote = activeMatch?.quote;
-      if (!quote) return textItem.str;
+  // Computes highlight rectangles by matching the active chunk's WORDS against the page's
+  // text items as a sequence — not constrained to a single fragment. PDF text layers
+  // routinely split one sentence across several adjacent fragments (e.g. "To" and
+  // "WAISL LIMITED" as two separate items), so searching within one fragment at a time
+  // (the old approach) frequently found nothing, or matched a much shorter, unrelated
+  // phrase. This walks the page's text items as one continuous word stream instead.
+  useEffect(() => {
+    if (!pdfDoc || !activeMatch?.quote) { setHighlights([]); return; }
+    let cancelled = false;
 
-      const itemStr = textItem.str;
-      const lowerItem = itemStr.toLowerCase();
+    async function compute() {
+      const page = await pdfDoc.getPage(pageNumber);
+      const tc = await page.getTextContent();
+      const items = tc.items.filter(i => typeof i.str === "string" && i.str.length > 0);
 
-      const quoteWords = quote.trim().toLowerCase().replace(/\s+/g, ' ').split(' ').filter(Boolean);
+      const searchWords = wordize(activeMatch.quote);
+      if (!searchWords.length) { if (!cancelled) setHighlights([]); return; }
 
-      const MIN_WINDOW = 3;
-      const MAX_WINDOW = Math.min(quoteWords.length, 12);
+      const viewport = page.getViewport({ scale });
+      const [vA, vB, vC, vD, vE, vF] = viewport.transform;
 
-      for (let winLen = MAX_WINDOW; winLen >= MIN_WINDOW; winLen--) {
-        for (let start = 0; start <= quoteWords.length - winLen; start++) {
-          const phrase = quoteWords.slice(start, start + winLen).join(' ');
-          const idx = lowerItem.indexOf(phrase);
-          if (idx !== -1) {
-            const before = itemStr.slice(0, idx);
-            const matched = itemStr.slice(idx, idx + phrase.length);
-            const after = itemStr.slice(idx + phrase.length);
-            return `${before}<mark style="background:rgba(250,204,21,0.80);color:#111;padding:0 2px;border-radius:2px;font-weight:600;">${matched}</mark>${after}`;
-          }
-        }
+      const pdfWords = [];
+      for (const item of items) {
+        wordize(item.str).forEach(word => pdfWords.push({ word, item }));
       }
 
-      return itemStr;
-    },
-    [activeMatch]
-  );
+      let seqLen = 0, seqItems = [];
+      for (let sw = 0; sw < searchWords.length; sw++) {
+        for (let pi = 0; pi < pdfWords.length; pi++) {
+          if (pdfWords[pi].word !== searchWords[sw]) continue;
+          let len = 0;
+          while (sw + len < searchWords.length && pi + len < pdfWords.length &&
+                 pdfWords[pi + len].word === searchWords[sw + len]) len++;
+          if (len > seqLen) { seqLen = len; seqItems = pdfWords.slice(pi, pi + len).map(w => w.item); }
+          if (seqLen >= 20) break;
+        }
+        if (seqLen >= 20) break;
+      }
+
+      if (cancelled || seqLen < 2) { if (!cancelled) setHighlights([]); return; }
+
+      const highlightItems = new Set(seqItems);
+      const rects = [];
+      for (const item of items) {
+        if (!highlightItems.has(item)) continue;
+        const cssX = vA * item.transform[4] + vC * item.transform[5] + vE;
+        const cssY = vB * item.transform[4] + vD * item.transform[5] + vF;
+        const fontSizePx = Math.hypot(item.transform[0], item.transform[1]) * scale;
+        const h = fontSizePx * 1.25;
+        rects.push({
+          x: cssX,
+          y: cssY - h * 0.85,
+          w: Math.max((item.width || 0) * scale, 4),
+          h: Math.max(h, 8),
+        });
+      }
+      if (!cancelled) setHighlights(rects);
+    }
+
+    compute().catch(() => { if (!cancelled) setHighlights([]); });
+    return () => { cancelled = true; };
+  }, [pdfDoc, pageNumber, activeMatch, scale]);
 
   if (!activeSource || !dbId) return null;
 
@@ -196,18 +231,31 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', background: '#0a0a0a', display: 'flex', justifyContent: 'center', padding: '24px' }}>
         <Document
           file={pdfUrl}
-          onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+          onLoadSuccess={(pdf) => { setPdfDoc(pdf); setNumPages(pdf.numPages); }}
           loading={<div style={{ color: '#60a5fa', fontSize: 13, marginTop: 80 }}>Loading PDF...</div>}
         >
-          <Page
-            pageNumber={pageNumber}
-            scale={scale}
-            renderTextLayer={true}
-            renderAnnotationLayer={false}
-            renderMode="canvas" // 🛠️ Crucial for rendering stability on long PDFs
-            customTextRenderer={textRenderer}
-            className="shadow-2xl shadow-black ring-1 ring-white/10"
-          />
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <Page
+              pageNumber={pageNumber}
+              scale={scale}
+              renderTextLayer={false}
+              renderAnnotationLayer={false}
+              renderMode="canvas" // 🛠️ Crucial for rendering stability on long PDFs
+              className="shadow-2xl shadow-black ring-1 ring-white/10"
+            />
+            {/* Highlight overlay: absolutely-positioned rects computed from the page's
+                real text-item coordinates, independent of fragment boundaries. */}
+            {highlights.map((r, i) => (
+              <div
+                key={i}
+                style={{
+                  position: 'absolute', left: r.x, top: r.y, width: r.w, height: r.h,
+                  background: 'rgba(250,204,21,0.55)', mixBlendMode: 'multiply',
+                  borderRadius: 2, pointerEvents: 'none',
+                }}
+              />
+            ))}
+          </div>
         </Document>
       </div>
     </aside>
