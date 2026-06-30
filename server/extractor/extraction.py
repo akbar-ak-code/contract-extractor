@@ -410,7 +410,7 @@ def extract_contract_profile_with_combined_pipeline(chunks, filename):
                         "description":  types.Schema(type=types.Type.STRING),
                         "quantity":     types.Schema(type=types.Type.NUMBER),
                         "unit_price":   types.Schema(type=types.Type.NUMBER),
-                        "source_quote": types.Schema(type=types.Type.STRING)
+                        "source_quote": types.Schema(type=types.Type.STRING, description="Exact literal quote from the document, copied character-for-character. Do not reformat or relabel the row.")
                     }
                 )
             )
