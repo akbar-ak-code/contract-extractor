@@ -19,7 +19,6 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
   const [activeMatchIdx, setActiveMatchIdx] = useState(0);
   const [highlights, setHighlights] = useState([]); // [{x,y,w,h}, ...] CSS-px overlay rects
   const prevLabelRef = useRef(null);
-  const pdfScrollRef = useRef(null);
 
   // Resolve the quote into one or more locatable chunks whenever the source changes.
   // The quote itself is untouched — this only changes how we search for it in the PDF.
@@ -116,23 +115,7 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
           h: Math.max(h, 8),
         });
       }
-      if (cancelled) return;
-      setHighlights(rects);
-
-      // Scroll the new highlight into view. Necessary even when the page number
-      // doesn't change between excerpts (e.g. several matches on the same page) -
-      // without this, navigating "next" silently moves the highlight off-screen
-      // below the current scroll position, which looks identical to nothing happening.
-      if (rects.length > 0 && pdfScrollRef.current) {
-        const topY = Math.min(...rects.map(r => r.y));
-        const bottomY = Math.max(...rects.map(r => r.y + r.h));
-        const midY = (topY + bottomY) / 2;
-        const viewerHeight = pdfScrollRef.current.clientHeight || 600;
-        const target = Math.max(0, midY - viewerHeight / 2);
-        requestAnimationFrame(() => {
-          pdfScrollRef.current?.scrollTo({ top: target, behavior: "smooth" });
-        });
-      }
+      if (!cancelled) setHighlights(rects);
     }
 
     compute().catch(() => { if (!cancelled) setHighlights([]); });
@@ -248,7 +231,7 @@ const SourceSidebar = ({ activeSource, onClose, dbId }) => {
       </div>
 
       {/* ── PDF area: takes ALL remaining space, scrollable ── */}
-      <div ref={pdfScrollRef} style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', background: '#0a0a0a', display: 'flex', justifyContent: 'center', padding: '24px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', background: '#0a0a0a', display: 'flex', justifyContent: 'center', padding: '24px' }}>
         <Document
           file={pdfUrl}
           onLoadSuccess={(pdf) => { setPdfDoc(pdf); setNumPages(pdf.numPages); }}
