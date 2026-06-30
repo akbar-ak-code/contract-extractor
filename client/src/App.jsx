@@ -7,7 +7,7 @@ import CalendarView from './components/CalendarView';
 import ExtractionView from './components/ExtractionView';
 import SourceSidebar from './components/SourceSidebar';
 import AllPOsView from './components/AllPOsView';
-import SchemaManager from './components/SchemaManager';
+// import SchemaManager from './components/SchemaManager';
 
 const App = () => {
   const [dbId, setDbId] = useState(null);
@@ -109,11 +109,12 @@ const App = () => {
     }
   };
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = async (extractionMode = 'primary') => {
     if (!file) return;
     setLoading(true); setError(null); setActiveSource(null);
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('extraction_mode', extractionMode); // 'primary' | 'deep'
     try {
       const response = await fetch('http://localhost:8000/api/upload', { method: 'POST', body: formData });
       const data = await response.json();
@@ -169,7 +170,7 @@ const App = () => {
           setResult(null);
           setFile(null);
           setActiveSource(null);
-          setActiveTab('extraction');
+                setActiveTab('extraction');
           setDbId(null);
         }}
         onLoadPO={loadPastPO}
@@ -221,11 +222,11 @@ const App = () => {
               onDeletePO={handleDeletePO}
             />
           )}
-          {activeTab === 'schema' && (
+          {/* {activeTab === 'schema' && (
             <SchemaManager
               poCount={history.length}
             />
-          )}
+          )} */}
           {activeTab === 'extraction' && (
             <ExtractionView
               file={file}

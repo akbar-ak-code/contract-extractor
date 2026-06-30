@@ -254,7 +254,7 @@ Output ONLY valid JSON with no markdown formatting:
     }
   ],
   "anomalies": [
-    {"type": "", "description": "", "page": 0}
+    {"type": "", "description": "", "page": 0, "source_clause": ""}
   ]
 }
 
@@ -264,6 +264,8 @@ RULES:
 - Boilerplate sections (Supplier Code of Conduct, GST compliance, Labour Law) contain no deadlines. Skip them.
 - If a clause is blank or says "NA", note it as an anomaly. Do not infer content.
 - Handwritten annotations are valid contract content. Extract and cite them.
+- Every anomaly's "source_clause" must be the exact literal text from the document (the blank
+  heading, the conflicting sentence, etc.) - never a paraphrase or summary of "description".
 
 Document Text:
 {combined_context}
@@ -305,9 +307,15 @@ def _run_deep_analysis(combined_context: str) -> dict:
     anomaly_schema = types.Schema(
         type=types.Type.OBJECT,
         properties={
-            "type":        types.Schema(type=types.Type.STRING),
-            "description": types.Schema(type=types.Type.STRING),
-            "page":        types.Schema(type=types.Type.INTEGER),
+            "type":          types.Schema(type=types.Type.STRING),
+            "description":   types.Schema(type=types.Type.STRING),
+            "page":          types.Schema(type=types.Type.INTEGER),
+            "source_clause": types.Schema(
+                type=types.Type.STRING,
+                description="Exact literal text from the document that triggered this anomaly "
+                            "(e.g. the blank clause heading, the conflicting sentence, the redacted "
+                            "value). Copied character-for-character, not a paraphrase of 'description'."
+            ),
         }
     )
     metadata_schema = types.Schema(
@@ -348,8 +356,8 @@ def _run_deep_analysis(combined_context: str) -> dict:
 # MAIN PIPELINE
 # ─────────────────────────────────────────────────────────────────────────────
 
-def extract_contract_profile_with_combined_pipeline(chunks, filename):
-    print(f"🚀 Running Cascade AI Extraction for: {filename}...")
+def extract_contract_profile_with_combined_pipeline(chunks, filename, run_deep_analysis: bool = True):
+    print(f"🚀 Running Cascade AI Extraction for: {filename}... (deep_analysis={run_deep_analysis})")
 
     all_text = "\n".join([c['text'] for c in chunks])
 
@@ -373,7 +381,7 @@ def extract_contract_profile_with_combined_pipeline(chunks, filename):
     # =========================================================
     # 1. ATTEMPT GEMINI EXTRACTION (Primary — highest priority)
     # =========================================================
-    print("  🧠 Attempting Gemini-2.5-Flash (primary)...")
+    print("🧠 Attempting Gemini-3.5-Flash (primary)...")
 
     def get_field_schema(desc):
         return types.Schema(
@@ -410,7 +418,7 @@ def extract_contract_profile_with_combined_pipeline(chunks, filename):
                         "description":  types.Schema(type=types.Type.STRING),
                         "quantity":     types.Schema(type=types.Type.NUMBER),
                         "unit_price":   types.Schema(type=types.Type.NUMBER),
-                        "source_quote": types.Schema(type=types.Type.STRING)
+                        "source_quote": types.Schema(type=types.Type.STRING, description="Exact literal quote from the document, copied character-for-character. Do not reformat or relabel the row.")
                     }
                 )
             )
@@ -565,8 +573,9 @@ Document Text:
 
     # =========================================================
     # 4. SECOND PASS — Deep Contract Analysis (Gemini only)
+    #    Only runs when the user explicitly requested it.
     # =========================================================
-    deep_analysis = _run_deep_analysis(combined_context)
+    deep_analysis = _run_deep_analysis(combined_context) if run_deep_analysis else {}
 
     return {
         "status": "success",

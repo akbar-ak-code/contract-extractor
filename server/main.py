@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import shutil
@@ -131,10 +131,22 @@ async def view_chunks(file: UploadFile = File(...)):
 
 
 @app.post("/api/upload")
-async def process_contract_profile(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    """Ingests a PDF, checks hash for caching, and processes via AI if new."""
+async def process_contract_profile(
+    file: UploadFile = File(...),
+    extraction_mode: str = Form("primary"),   # "primary" | "deep"
+    db: Session = Depends(get_db)
+):
+    """Ingests a PDF, checks hash for caching, and processes via AI if new.
+
+    extraction_mode:
+      - "primary": extracts only the 10 permanent/core fields. Fast, cheap.
+      - "deep":    runs the primary extraction AND the second-pass deep
+                   contract analysis (deadlines, anomalies, raw_fields).
+    """
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail="Invalid file type. Only PDF extensions are supported.")
+
+    run_deep = (extraction_mode == "deep")
 
     file_bytes = await file.read()
     file_hash  = hashlib.sha256(file_bytes).hexdigest()
@@ -143,6 +155,29 @@ async def process_contract_profile(file: UploadFile = File(...), db: Session = D
     # ── Cache hit ──────────────────────────────────────────────────────────
     existing_record = db.query(PurchaseOrderRecord).filter(PurchaseOrderRecord.file_hash == file_hash).first()
     if existing_record:
+        existing_custom = existing_record.custom_fields or {}
+        has_deep_cached = "_deep_analysis" in existing_custom
+
+        # If the user now wants deep analysis but we only have a primary-only
+        # cached record, run the deep pass now and back-fill the cache.
+        if run_deep and not has_deep_cached:
+            print(f"🎯 CACHE HIT (primary-only) — upgrading to deep analysis for: {file.filename}")
+            try:
+                if existing_record.pdf_file_path and os.path.exists(existing_record.pdf_file_path):
+                    chunks = extract_and_chunk_pdf(existing_record.pdf_file_path)
+                    all_text = "\n--- PAGE SEPARATOR ---\n".join(c['text'] for c in chunks)
+                    from extractor.extraction import _run_deep_analysis
+                    deep_analysis = _run_deep_analysis(all_text)
+                    if deep_analysis:
+                        from sqlalchemy.orm.attributes import flag_modified
+                        existing_custom["_deep_analysis"] = deep_analysis
+                        existing_record.custom_fields = existing_custom
+                        flag_modified(existing_record, "custom_fields")
+                        db.commit()
+                        db.refresh(existing_record)
+            except Exception as e:
+                print(f"⚠️ Deep-analysis upgrade failed: {e}")
+
         print(f"🎯 DATABASE CACHE HIT: {file.filename}")
         return {
             "filename": existing_record.filename,
@@ -153,7 +188,7 @@ async def process_contract_profile(file: UploadFile = File(...), db: Session = D
             }
         }
 
-    print(f"⚙️ NO CACHE FOUND. Running AI Pipeline for: {file.filename}")
+    print(f"⚙️ NO CACHE FOUND. Running AI Pipeline for: {file.filename} (mode={extraction_mode})")
 
     unique_filename = f"{uuid.uuid4().hex}_{file.filename}"
     file_path = os.path.join(PERMANENT_STORAGE_DIR, unique_filename)
@@ -163,7 +198,7 @@ async def process_contract_profile(file: UploadFile = File(...), db: Session = D
             shutil.copyfileobj(file.file, buffer)
 
         chunks = extract_and_chunk_pdf(file_path)
-        result = extract_contract_profile_with_combined_pipeline(chunks, file.filename)
+        result = extract_contract_profile_with_combined_pipeline(chunks, file.filename, run_deep_analysis=run_deep)
 
         if result.get("status") == "failed":
             raise HTTPException(status_code=500, detail=result.get("message"))
@@ -180,7 +215,7 @@ async def process_contract_profile(file: UploadFile = File(...), db: Session = D
         quotes_dict = {f: get_quote(f) for f in BUILT_IN_COLS}
 
         # Store deep analysis inside custom_fields JSON under reserved key
-        initial_custom_fields = {}
+        initial_custom_fields = {"_extraction_mode": extraction_mode}
         if deep_analysis:
             initial_custom_fields["_deep_analysis"] = deep_analysis
 
@@ -349,11 +384,20 @@ def _split_quote_into_chunks(quote, max_chunks=25, min_words=4, min_chars=15):
 
     raw_pieces = re.split(r"(?<=[.;:])\s+|\n+", quote)
     chunks = []
+    seen = set()
     for piece in raw_pieces:
         piece = piece.strip()
         if not piece or len(piece) < min_chars or len(piece.split()) < min_words:
             continue
-        chunks.append(piece[:300])
+        piece = piece[:300]
+        # Skip duplicate sentences (e.g. Gemini sometimes repeats an amendment note
+        # verbatim within the same quote). Without this, the same text would appear
+        # as two separate "excerpts" pointing at the identical highlighted location.
+        key = re.sub(r"\s+", " ", piece).strip().lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        chunks.append(piece)
         if len(chunks) >= max_chunks:
             break
     return chunks or [quote[:300]]
