@@ -66,10 +66,6 @@ def _save_schema(fields: list):
 #  PROFILE RECONSTRUCTION HELPER
 # ═══════════════════════════════════════════════════════════════════════════
 def _build_profile_from_record(record: PurchaseOrderRecord) -> dict:
-    """
-    Reconstruct the full profile dict the React frontend expects from a DB record.
-    Includes built-in fields, dynamic/deep-analysis fields, and user custom fields.
-    """
     quotes       = record.source_quotes or {}
     full_history = record.edit_history  or []
     custom_data  = record.custom_fields or {}
@@ -120,7 +116,7 @@ async def get_upload_status(task_id: str):
 
 def run_pipeline_task(task_id: str, file_path: str, run_deep: bool, filename: str, file_hash: str):
     """Background task that runs the AI pipeline safely."""
-    # Create a fresh database session bound directly to the engine to avoid 500 session closed errors
+    # Create a fresh database session bound directly to the engine
     db_session = Session(bind=engine)
     
     try:
@@ -131,7 +127,6 @@ def run_pipeline_task(task_id: str, file_path: str, run_deep: bool, filename: st
         chunks = extract_and_chunk_pdf(file_path)
         
         update("Analyzing with Gemini & Groq AI...", 40)
-        # Main extraction (Gemini -> Groq -> Regex fallback)
         result = extract_contract_profile_with_combined_pipeline(chunks, filename, run_deep_analysis=run_deep)
         
         if run_deep:
@@ -177,13 +172,15 @@ def run_pipeline_task(task_id: str, file_path: str, run_deep: bool, filename: st
         
         db_session.add(db_record)
         db_session.commit()
+        db_session.refresh(db_record)
         
-        update("Complete", 100)
+        # We pass the db_id back here so the frontend can load it instantly
+        task_progress[task_id] = {"status": "Complete", "progress": 100, "db_id": db_record.id}
     except Exception as e:
         print(f"Background Task Error: {str(e)}")
         task_progress[task_id] = {"status": f"Error: {str(e)}", "progress": -1}
     finally:
-        db_session.close() # Safely close thread session
+        db_session.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════

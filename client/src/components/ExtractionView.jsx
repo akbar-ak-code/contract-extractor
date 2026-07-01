@@ -349,7 +349,7 @@ const Card = ({ title, icon, children }) => (
   </motion.section>
 );
 
-const ExtractionView = ({ file, error, result, fileInputRef, handleFileSelection, setActiveSource, dbId, onUpdate, customFields = [], scrollToField = null, onScrollToFieldDone = () => {} }) => {
+const ExtractionView = ({ file, error, result, fileInputRef, handleFileSelection, setActiveSource, dbId, onUpdate, customFields = [], scrollToField = null, onScrollToFieldDone = () => {}, loadPastPO }) => {
   const deepAnalysis = result?._deep_analysis || null;
   const hasRawFields = deepAnalysis?.raw_fields && Object.keys(deepAnalysis.raw_fields).length > 0;
   const hasAnomalies = deepAnalysis?.anomalies && deepAnalysis.anomalies.length > 0;
@@ -420,7 +420,7 @@ const ExtractionView = ({ file, error, result, fileInputRef, handleFileSelection
     setSavingIdx(null);
   };
 
-  // ── FULL PIPELINE RUN & POLLING ──
+  // ── FULL PIPELINE RUN & POLLING (SEAMLESS) ──
   const runPipeline = async () => {
     if (!file) return;
     setIsProcessing(true);
@@ -436,8 +436,11 @@ const ExtractionView = ({ file, error, result, fileInputRef, handleFileSelection
       const res = await fetch('http://localhost:8000/api/upload', { method: 'POST', body: formData });
       const data = await res.json();
       
+      // If it's already fully cached, load it right away
       if (data.cached && !data.needs_deep_upgrade) {
-        window.location.reload(); 
+        if (loadPastPO && data.db_id) {
+            loadPastPO(data.db_id);
+        }
         return;
       }
 
@@ -454,7 +457,10 @@ const ExtractionView = ({ file, error, result, fileInputRef, handleFileSelection
             clearInterval(interval);
             setIsProcessing(false);
             if (statusData.progress === 100) {
-               window.location.reload(); 
+               // ✅ Seamless transition using loadPastPO instead of window refresh
+               if (loadPastPO && statusData.db_id) {
+                   loadPastPO(statusData.db_id); 
+               }
             } else {
                setLocalError(statusData.status);
             }

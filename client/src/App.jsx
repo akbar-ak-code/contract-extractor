@@ -116,8 +116,6 @@ const App = () => {
     }
   };
 
-  // Note: handleAnalyze is kept here for legacy compatibility if you ever need it, 
-  // but ExtractionView now handles its own pipeline process internally.
   const handleAnalyze = async (extractionMode = 'primary') => {
     if (!file) return;
     setLoading(true); setError(null); setActiveSource(null);
@@ -245,7 +243,7 @@ const App = () => {
               customFields={customFields}
               scrollToField={scrollToField}
               onScrollToFieldDone={() => setScrollToField(null)}
-              loadPastPO={loadPastPO} // <--- Added seamlessly here!
+              loadPastPO={loadPastPO}
             />
           )}
         </div>
