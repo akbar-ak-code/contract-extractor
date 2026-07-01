@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import {
   UploadCloud, Hash, Building, MapPin, Clock, AlertTriangle,
   DollarSign, Shield, List, Edit3, FileText, Sparkles, Check, X,
-  Edit2, History, ChevronDown, ChevronUp, Calendar, Zap, ArrowRight, Save, RefreshCw
+  Edit2, History, Calendar, Zap, ArrowRight, Save, RefreshCw
 } from 'lucide-react';
 
 // ── TIME MATH HELPERS ──────────────────────────────────────────────────────
@@ -349,36 +349,24 @@ const Card = ({ title, icon, children }) => (
   </motion.section>
 );
 
-const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFileSelection, handleAnalyze, setActiveSource, dbId, onUpdate, customFields = [], scrollToField = null, onScrollToFieldDone = () => {} }) => {
+const ExtractionView = ({ file, error, result, fileInputRef, handleFileSelection, setActiveSource, dbId, onUpdate, customFields = [], scrollToField = null, onScrollToFieldDone = () => {} }) => {
   const deepAnalysis = result?._deep_analysis || null;
   const hasRawFields = deepAnalysis?.raw_fields && Object.keys(deepAnalysis.raw_fields).length > 0;
   const hasAnomalies = deepAnalysis?.anomalies && deepAnalysis.anomalies.length > 0;
   const hasDeadlines = deepAnalysis?.deadlines && deepAnalysis.deadlines.length > 0;
 
-  // ── TRIGGER STATE & AUTO-SYNC LOGIC ──
+  // ── STATE ──
   const [triggerDates, setTriggerDates] = useState({});
   const [savingIdx, setSavingIdx] = useState(null);
+  
+  // Pipeline specific state
+  const [extractionMode, setExtractionMode] = useState('primary'); 
+  const [pipelineProgress, setPipelineProgress] = useState(0);
+  const [pipelineStatus, setPipelineStatus] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [localError, setLocalError] = useState(error);
 
-  // ── DYNAMIC LOADING TEXT SEQUENCE & EXTRACTION MODE ──
-  const [loadingText, setLoadingText] = useState("Extracting fields (from AI Gemini / Groq)...");
-  const [extractionMode, setExtractionMode] = useState('primary'); // 'primary' | 'deep'
-
-  useEffect(() => {
-    if (loading) {
-      setLoadingText("Extracting fields (from AI Gemini / Groq)...");
-      if (extractionMode === 'deep') {
-        const timer = setTimeout(() => {
-          setLoadingText("Performing deep analysis (extracting metadata, deadlines, and anomalies)...");
-        }, 4000);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [loading, extractionMode]);
-
-  // Scroll to (and briefly flash) the field a calendar date click was targeting.
-  // Runs once result is loaded and rendered, since the target row only exists in
-  // the DOM after that. id matches what's set on field rows / deadline cards below
-  // (field-row-{fieldKey} / deadline_{index}).
+  // Scroll logic
   useEffect(() => {
     if (!scrollToField || !result) return;
     const elId = scrollToField.startsWith('deadline_') ? scrollToField : `field-row-${scrollToField}`;
@@ -420,8 +408,6 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
 
     const updatedDeepAnalysis = JSON.parse(JSON.stringify(deepAnalysis));
     updatedDeepAnalysis.deadlines[idx].computed_date = calculatedResult;
-    // Persist the trigger date itself too, not just the computed result - otherwise
-    // reopening the PO shows the final date with no record of what produced it.
     updatedDeepAnalysis.deadlines[idx].trigger_date = triggerDate;
 
     try {
@@ -434,77 +420,154 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
     setSavingIdx(null);
   };
 
+  // ── FULL PIPELINE RUN & POLLING ──
+  const runPipeline = async () => {
+    if (!file) return;
+    setIsProcessing(true);
+    setPipelineProgress(5);
+    setPipelineStatus("Initializing Pipeline...");
+    setLocalError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('extraction_mode', extractionMode);
+
+      const res = await fetch('http://localhost:8000/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      
+      if (data.cached && !data.needs_deep_upgrade) {
+        window.location.reload(); 
+        return;
+      }
+
+      const taskId = data.task_id;
+
+      const interval = setInterval(async () => {
+        const statusRes = await fetch(`http://localhost:8000/api/upload-status/${taskId}`);
+        const statusData = await statusRes.json();
+
+        setPipelineStatus(statusData.status);
+        setPipelineProgress(statusData.progress);
+
+        if (statusData.progress >= 100 || statusData.progress === -1) {
+            clearInterval(interval);
+            setIsProcessing(false);
+            if (statusData.progress === 100) {
+               window.location.reload(); 
+            } else {
+               setLocalError(statusData.status);
+            }
+        }
+      }, 800);
+
+    } catch (err) {
+      console.error(err);
+      setPipelineStatus("Error occurred connecting to server.");
+      setLocalError("Error occurred connecting to server.");
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div className="animate-in fade-in duration-500" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       {!result ? (
-        <div onClick={() => !loading && fileInputRef.current.click()} className="group relative overflow-hidden rounded-2xl border-2 border-dashed border-white/10 bg-white/[0.01] backdrop-blur-xl px-10 py-24 text-center cursor-pointer transition-all duration-300 hover:border-indigo-500/40 hover:bg-white/[0.02]" style={{ borderRadius: 24 }}>
+        <div onClick={() => !isProcessing && fileInputRef.current.click()} className={`group relative overflow-hidden rounded-2xl border-2 border-dashed border-white/10 bg-white/[0.01] backdrop-blur-xl px-10 py-24 text-center transition-all duration-300 ${!isProcessing ? 'cursor-pointer hover:border-indigo-500/40 hover:bg-white/[0.02]' : ''}`} style={{ borderRadius: 24 }}>
           <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={(e) => handleFileSelection(e.target.files[0])} />
-          <div className="relative">
-            <UploadCloud size={36} className="mx-auto mb-6 text-indigo-400" />
-            <h3 className="mb-2 text-2xl font-bold tracking-tight text-white">{file ? file.name : "Upload Purchase Order"}</h3>
+          <div className="relative max-w-lg mx-auto">
+            
+            {!isProcessing ? (
+              <>
+                <UploadCloud size={48} className="mx-auto mb-6 text-indigo-400" />
+                <h3 className="mb-2 text-2xl font-bold tracking-tight text-white">{file ? file.name : "Upload Purchase Order"}</h3>
 
-            {file && !loading && (
-              <div onClick={(e) => e.stopPropagation()} className="mt-8 flex flex-col items-center gap-6">
-                <div className="flex w-full max-w-md gap-4">
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setExtractionMode('primary'); }}
-                    style={{
-                      flex: 1, borderRadius: 16, padding: '16px', textAlign: 'left', cursor: 'pointer',
-                      background: extractionMode === 'primary' ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.02)',
-                      border: `1px solid ${extractionMode === 'primary' ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)'}`,
-                      transition: 'all 0.2s',
-                      boxShadow: extractionMode === 'primary' ? '0 4px 20px rgba(99,102,241,0.15)' : 'none'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                      <FileText size={16} color={extractionMode === 'primary' ? '#818cf8' : '#71717a'} />
-                      <span style={{ fontSize: 13, fontWeight: 700, color: extractionMode === 'primary' ? '#e0e7ff' : '#a1a1aa' }}>Primary Fields</span>
+                {file && (
+                  <div onClick={(e) => e.stopPropagation()} className="mt-8 flex flex-col items-center gap-6">
+                    <div className="flex w-full gap-4">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setExtractionMode('primary'); }}
+                        style={{
+                          flex: 1, borderRadius: 16, padding: '16px', textAlign: 'left', cursor: 'pointer',
+                          background: extractionMode === 'primary' ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.02)',
+                          border: `1px solid ${extractionMode === 'primary' ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                          transition: 'all 0.2s',
+                          boxShadow: extractionMode === 'primary' ? '0 4px 20px rgba(99,102,241,0.15)' : 'none'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                          <FileText size={16} color={extractionMode === 'primary' ? '#818cf8' : '#71717a'} />
+                          <span style={{ fontSize: 13, fontWeight: 700, color: extractionMode === 'primary' ? '#e0e7ff' : '#a1a1aa' }}>Primary Fields</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: '#71717a', lineHeight: 1.5 }}>
+                          Extracts 10 core fields. Fast & cost-effective. <br /> Estimated time: 30s
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setExtractionMode('deep'); }}
+                        style={{
+                          flex: 1, borderRadius: 16, padding: '16px', textAlign: 'left', cursor: 'pointer',
+                          background: extractionMode === 'deep' ? 'rgba(168,85,247,0.1)' : 'rgba(255,255,255,0.02)',
+                          border: `1px solid ${extractionMode === 'deep' ? 'rgba(168,85,247,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                          transition: 'all 0.2s',
+                          boxShadow: extractionMode === 'deep' ? '0 4px 20px rgba(168,85,247,0.15)' : 'none'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                          <Sparkles size={16} color={extractionMode === 'deep' ? '#c084fc' : '#71717a'} />
+                          <span style={{ fontSize: 13, fontWeight: 700, color: extractionMode === 'deep' ? '#f3e8ff' : '#a1a1aa' }}>Deep Analysis</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: '#71717a', lineHeight: 1.5 }}>
+                          Adds deadlines, anomaly detection & PO-specific fields. <br/>Estimated time: 90s
+                        </div>
+                      </button>
                     </div>
-                    <div style={{ fontSize: 11, color: '#71717a', lineHeight: 1.5 }}>
-                      Extracts 10 core fields. Fast & cost-effective. <br /> Estimated time: 30s
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setExtractionMode('deep'); }}
-                    style={{
-                      flex: 1, borderRadius: 16, padding: '16px', textAlign: 'left', cursor: 'pointer',
-                      background: extractionMode === 'deep' ? 'rgba(168,85,247,0.1)' : 'rgba(255,255,255,0.02)',
-                      border: `1px solid ${extractionMode === 'deep' ? 'rgba(168,85,247,0.4)' : 'rgba(255,255,255,0.08)'}`,
-                      transition: 'all 0.2s',
-                      boxShadow: extractionMode === 'deep' ? '0 4px 20px rgba(168,85,247,0.15)' : 'none'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                      <Sparkles size={16} color={extractionMode === 'deep' ? '#c084fc' : '#71717a'} />
-                      <span style={{ fontSize: 13, fontWeight: 700, color: extractionMode === 'deep' ? '#f3e8ff' : '#a1a1aa' }}>Deep Analysis</span>
-                    </div>
-                    <div style={{ fontSize: 11, color: '#71717a', lineHeight: 1.5 }}>
-                      Adds deadlines, anomaly detection & PO-specific fields. <br/>Estimated time: 90s
-                    </div>
-                  </button>
+
+                    <button onClick={(e) => { e.stopPropagation(); runPipeline(); }} className="mac-btn-primary w-full py-4 rounded-xl text-base font-bold flex items-center justify-center gap-2 shadow-xl shadow-indigo-500/20 hover:shadow-indigo-500/40">
+                      <Zap size={18} /> Start AI Pipeline
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              /* ── PIPELINE PROGRESS BAR ── */
+              <div className="mt-8">
+                <RefreshCw size={36} className="mx-auto mb-6 text-indigo-400 animate-spin" />
+                <h3 className="mb-6 text-xl font-bold tracking-tight text-white">Processing Document...</h3>
+                
+                <div className="w-full bg-black/40 p-6 rounded-2xl border border-white/10 backdrop-blur-md">
+                  <div className="flex justify-between mb-3">
+                    <span className="text-sm font-medium text-zinc-300">{pipelineStatus}</span>
+                    <span className="text-sm font-bold text-indigo-400">{pipelineProgress}%</span>
+                  </div>
+                  <div className="h-3 w-full bg-white/5 rounded-full overflow-hidden border border-white/10 relative">
+                    <div 
+                      className="absolute top-0 left-0 h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-700 ease-out" 
+                      style={{ width: `${pipelineProgress}%` }}
+                    />
+                  </div>
+                  
+                  {/* Visual Timeline Indicators */}
+                  <div className="flex justify-between mt-4 text-[10px] uppercase tracking-wider font-bold text-zinc-500">
+                    <span className={pipelineProgress >= 10 ? "text-indigo-400" : ""}>Chunking</span>
+                    <span className={pipelineProgress >= 30 ? "text-purple-400" : ""}>Gemini & Groq</span>
+                    <span className={pipelineProgress >= 75 ? "text-pink-400" : ""}>Deep Learning</span>
+                  </div>
                 </div>
-
-                <button onClick={(e) => { e.stopPropagation(); handleAnalyze(extractionMode === 'deep'); }} className="mac-btn-primary" style={{ padding: '12px 28px', fontSize: 14 }}>
-                  <Sparkles size={15} /> Run Enterprise Extraction
-                </button>
               </div>
             )}
-
-            {loading && (
-              <div className="mt-8 flex flex-col items-center gap-4 justify-center">
-                <RefreshCw size={24} className="animate-spin text-indigo-400" />
-                <div className="text-zinc-400 text-sm animate-pulse">{loadingText}</div>
+            
+            {(localError || error) && (
+              <div className="mt-6 text-red-400 text-sm font-medium p-3 bg-red-500/10 rounded-lg border border-red-500/20">
+                {localError || error}
               </div>
             )}
-            {error && <div className="mt-6 text-red-400 text-sm">{error}</div>}
           </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6" style={{ alignItems: 'start' }}>
 
-          {/* PERMANENT FIELDS RENDERED AT THE TOP */}
           <Card title="Document Headers" icon={<FileText size={13} />}>
             <ProfileRow icon={<Hash size={14} />} label="PO Number" fieldKey="po_number" data={result.po_number} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
             <ProfileRow icon={<Building size={14} />} label="Vendor Name" fieldKey="vendor_name" data={result.vendor_name} dbId={dbId} onUpdate={onUpdate} setActiveSource={setActiveSource} />
@@ -602,7 +665,6 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
             </Card>
           </div>
 
-          {/* ── DEADLINES CARD WITH INTERACTIVE CALCULATOR (RENDERED BEFORE ANOMALIES) ── */}
           {hasDeadlines && (
             <div className="xl:col-span-2">
               <Card title="Contract Deadlines & Milestones" icon={<Calendar size={13} className="text-orange-400"/>}>
@@ -611,14 +673,9 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
                     const isNull = !dl.computed_date || String(dl.computed_date).toLowerCase() === 'null';
                     const isEditing = triggerDates[i + "_edit"];
                     const showCalculator = isNull || isEditing;
-                    // Falls back to the previously-saved trigger date (not just in-session
-                    // state) so reopening the calculator to revise a deadline starts from
-                    // what was actually used, not blank.
+                    
                     const baseDateInput = triggerDates[i] !== undefined ? triggerDates[i] : (dl.trigger_date || '');
-                    // anchor_description is just a short label naming the trigger event (e.g.
-                    // "Date of Invoice(s)") - it never contains the actual "within 15 days"
-                    // duration. That language lives in the reasoning_chain step descriptions
-                    // instead, so search those too, not anchor_description alone.
+                    
                     const offsetSearchText = [
                       dl.anchor_description,
                       ...(dl.reasoning_chain || []).map(s => s.description)
@@ -666,7 +723,6 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
                           </span>
                           {dl.anchor_description}
 
-                          {/* 🟢 RESTORED VIEW SOURCE BUTTON FOR DEADLINES */}
                           {dl.reasoning_chain?.length > 0 && (
                             <button
                               onClick={() => setActiveSource({
@@ -688,7 +744,6 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
                           )}
                         </div>
 
-                        {/* Interactive Calculator UI */}
                         {showCalculator && (
                           <div className="mt-2 flex items-center gap-3 p-3 rounded-lg bg-black/30 border border-white/[0.03]">
                             <div className="flex flex-col gap-1 w-[160px]">
@@ -746,7 +801,6 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
             </div>
           )}
 
-          {/* ── DETECTED ANOMALIES (RENDERED AT THE BOTTOM) ── */}
           {hasAnomalies && (
             <div className="xl:col-span-2">
               <Card title="Detected Anomalies & Risks" icon={<AlertTriangle size={13} className="text-red-400"/>}>
@@ -759,7 +813,6 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
                         <div className="text-sm opacity-90">{an.description} <span className="opacity-75 text-xs ml-1">(Page {an.page})</span></div>
                       </div>
 
-                      {/* 🟢 RESTORED VIEW SOURCE BUTTON FOR ANOMALIES */}
                       {an.page && (
                         <button
                           onClick={() => setActiveSource({ label: an.type, quote: an.source_clause || an.description, page: an.page })}

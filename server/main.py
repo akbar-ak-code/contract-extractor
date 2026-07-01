@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import shutil
@@ -90,11 +90,9 @@ def _build_profile_from_record(record: PurchaseOrderRecord) -> dict:
         "line_items":              {"status": "found" if record.line_items else "not_found", "value": record.line_items},
     }
 
-    # ── Deep analysis (deadlines / anomalies / metadata) ─────────────────
     if "_deep_analysis" in custom_data:
         profile["_deep_analysis"] = custom_data["_deep_analysis"]
 
-    # ── User-defined custom fields ────────────────────────────────────────
     custom_schema = _load_schema()
     for cf in custom_schema:
         k = cf["key"]
@@ -108,6 +106,84 @@ def _build_profile_from_record(record: PurchaseOrderRecord) -> dict:
         }
 
     return profile
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  PIPELINE PROGRESS TRACKING & BACKGROUND TASK
+# ═══════════════════════════════════════════════════════════════════════════
+task_progress = {}
+
+@app.get("/api/upload-status/{task_id}")
+async def get_upload_status(task_id: str):
+    """Frontend polls this endpoint to get the real-time progress."""
+    return task_progress.get(task_id, {"status": "Not Found", "progress": 0})
+
+def run_pipeline_task(task_id: str, file_path: str, run_deep: bool, filename: str, file_hash: str):
+    """Background task that runs the AI pipeline safely."""
+    # Create a fresh database session bound directly to the engine to avoid 500 session closed errors
+    db_session = Session(bind=engine)
+    
+    try:
+        def update(msg, prog):
+            task_progress[task_id] = {"status": msg, "progress": prog}
+            
+        update("Extracting and chunking PDF...", 10)
+        chunks = extract_and_chunk_pdf(file_path)
+        
+        update("Analyzing with Gemini & Groq AI...", 40)
+        # Main extraction (Gemini -> Groq -> Regex fallback)
+        result = extract_contract_profile_with_combined_pipeline(chunks, filename, run_deep_analysis=run_deep)
+        
+        if run_deep:
+            update("Running Deep Contract Analysis...", 80)
+            
+        update("Finalizing Database Record...", 95)
+        
+        if result.get("status") == "failed":
+            raise Exception(result.get("message", "Extraction failed"))
+
+        profile = result.get("profile", {})
+        deep_analysis = result.get("deep_analysis", {})
+        
+        def get_val(field):
+            return profile.get(field, {}).get("value", "not_found")
+        def get_quote(field):
+            return profile.get(field, {}).get("source_quote", "Quote missing")
+
+        quotes_dict = {f: get_quote(f) for f in BUILT_IN_COLS}
+
+        initial_custom_fields = {"_extraction_mode": "deep" if run_deep else "primary"}
+        if deep_analysis:
+            initial_custom_fields["_deep_analysis"] = deep_analysis
+
+        db_record = PurchaseOrderRecord(
+            filename=filename,
+            file_hash=file_hash,
+            pdf_file_path=file_path,
+            po_number=get_val("po_number"),
+            vendor_name=get_val("vendor_name"),
+            vendor_contact_address=get_val("vendor_contact_address"),
+            effective_date=get_val("effective_date"),
+            lapse_expiry_date=get_val("lapse_expiry_date"),
+            total_value=get_val("total_value"),
+            conditions_of_agreement=get_val("conditions_of_agreement"),
+            conditions_of_payment=get_val("conditions_of_payment"),
+            authorising_signatory=get_val("authorising_signatory"),
+            line_items=get_val("line_items"),
+            source_quotes=quotes_dict,
+            custom_fields=initial_custom_fields,
+            status="Pending Review"
+        )
+        
+        db_session.add(db_record)
+        db_session.commit()
+        
+        update("Complete", 100)
+    except Exception as e:
+        print(f"Background Task Error: {str(e)}")
+        task_progress[task_id] = {"status": f"Error: {str(e)}", "progress": -1}
+    finally:
+        db_session.close() # Safely close thread session
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -132,36 +208,27 @@ async def view_chunks(file: UploadFile = File(...)):
 
 @app.post("/api/upload")
 async def process_contract_profile(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    extraction_mode: str = Form("primary"),   # "primary" | "deep"
+    extraction_mode: str = Form("primary"),
     db: Session = Depends(get_db)
 ):
-    """Ingests a PDF, checks hash for caching, and processes via AI if new.
-
-    extraction_mode:
-      - "primary": extracts only the 10 permanent/core fields. Fast, cheap.
-      - "deep":    runs the primary extraction AND the second-pass deep
-                   contract analysis (deadlines, anomalies, raw_fields).
-    """
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail="Invalid file type. Only PDF extensions are supported.")
 
     run_deep = (extraction_mode == "deep")
-
     file_bytes = await file.read()
     file_hash  = hashlib.sha256(file_bytes).hexdigest()
     await file.seek(0)
 
-    # ── Cache hit ──────────────────────────────────────────────────────────
+    # 1. Check Cache
     existing_record = db.query(PurchaseOrderRecord).filter(PurchaseOrderRecord.file_hash == file_hash).first()
     if existing_record:
         existing_custom = existing_record.custom_fields or {}
         has_deep_cached = "_deep_analysis" in existing_custom
 
-        # If the user now wants deep analysis but we only have a primary-only
-        # cached record, run the deep pass now and back-fill the cache.
+        # Upgrade cached record synchronously if requested
         if run_deep and not has_deep_cached:
-            print(f"🎯 CACHE HIT (primary-only) — upgrading to deep analysis for: {file.filename}")
             try:
                 if existing_record.pdf_file_path and os.path.exists(existing_record.pdf_file_path):
                     chunks = extract_and_chunk_pdf(existing_record.pdf_file_path)
@@ -178,85 +245,21 @@ async def process_contract_profile(
             except Exception as e:
                 print(f"⚠️ Deep-analysis upgrade failed: {e}")
 
-        print(f"🎯 DATABASE CACHE HIT: {file.filename}")
-        return {
-            "filename": existing_record.filename,
-            "db_id":    existing_record.id,
-            "extraction_result": {
-                "status":  "success",
-                "profile": _build_profile_from_record(existing_record)
-            }
-        }
+        # Tell the frontend it was cached so it can instantly load it
+        return {"db_id": existing_record.id, "cached": True}
 
-    print(f"⚙️ NO CACHE FOUND. Running AI Pipeline for: {file.filename} (mode={extraction_mode})")
-
+    # 2. Setup Background Task for new files
+    task_id = str(uuid.uuid4())
     unique_filename = f"{uuid.uuid4().hex}_{file.filename}"
     file_path = os.path.join(PERMANENT_STORAGE_DIR, unique_filename)
-
-    try:
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        chunks = extract_and_chunk_pdf(file_path)
-        result = extract_contract_profile_with_combined_pipeline(chunks, file.filename, run_deep_analysis=run_deep)
-
-        if result.get("status") == "failed":
-            raise HTTPException(status_code=500, detail=result.get("message"))
-
-        profile      = result.get("profile", {})
-        deep_analysis = result.get("deep_analysis", {})
-
-        def get_val(field):
-            return profile.get(field, {}).get("value", "not_found")
-
-        def get_quote(field):
-            return profile.get(field, {}).get("source_quote", "Quote missing")
-
-        quotes_dict = {f: get_quote(f) for f in BUILT_IN_COLS}
-
-        # Store deep analysis inside custom_fields JSON under reserved key
-        initial_custom_fields = {"_extraction_mode": extraction_mode}
-        if deep_analysis:
-            initial_custom_fields["_deep_analysis"] = deep_analysis
-
-        db_record = PurchaseOrderRecord(
-            filename=file.filename,
-            file_hash=file_hash,
-            pdf_file_path=file_path,
-            po_number=get_val("po_number"),
-            vendor_name=get_val("vendor_name"),
-            vendor_contact_address=get_val("vendor_contact_address"),
-            effective_date=get_val("effective_date"),
-            lapse_expiry_date=get_val("lapse_expiry_date"),
-            total_value=get_val("total_value"),
-            conditions_of_agreement=get_val("conditions_of_agreement"),
-            conditions_of_payment=get_val("conditions_of_payment"),
-            authorising_signatory=get_val("authorising_signatory"),
-            line_items=get_val("line_items"),
-            source_quotes=quotes_dict,
-            custom_fields=initial_custom_fields,
-            status="Pending Review"
-        )
-
-        db.add(db_record)
-        db.commit()
-        db.refresh(db_record)
-
-        # Attach deep_analysis to the profile before returning so UI shows it immediately
-        if deep_analysis:
-            profile["_deep_analysis"] = deep_analysis
-
-        return {
-            "filename": file.filename,
-            "db_id":    db_record.id,
-            "extraction_result": {"status": "success", "profile": profile}
-        }
-
-    except Exception as e:
-        print(f"🔴 System Level Error: {str(e)}")
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        raise HTTPException(status_code=500, detail="An internal server error occurred during extraction.")
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    task_progress[task_id] = {"status": "Initializing Pipeline...", "progress": 5}
+    background_tasks.add_task(run_pipeline_task, task_id, file_path, run_deep, file.filename, file_hash)
+    
+    return {"task_id": task_id}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -286,17 +289,6 @@ def _is_real_date(date_str):
 
 @app.get("/api/calendar-events")
 async def get_calendar_events(db: Session = Depends(get_db)):
-    """
-    Aggregates every calendar-relevant date across all POs into one flat list:
-    lapse/expiry and effective dates (built-in fields), plus every deadline that
-    has a computed_date - whether the AI computed it directly or the user saved
-    it manually via the trigger-date calculator, since both end up written to the
-    same _deep_analysis.deadlines[].computed_date field once persisted.
-
-    Each event carries po_id + field_key so the frontend can both open the PO
-    and scroll straight to that specific date's row, instead of just opening
-    the PO and leaving the user to find it.
-    """
     records = db.query(PurchaseOrderRecord).all()
     events = []
 
@@ -349,7 +341,6 @@ async def delete_purchase_order(po_id: int, db: Session = Depends(get_db)):
     if record.pdf_file_path and os.path.exists(record.pdf_file_path):
         try:
             os.remove(record.pdf_file_path)
-            print(f"🗑️ Deleted physical file: {record.pdf_file_path}")
         except Exception as e:
             print(f"⚠️ Warning: Could not delete physical file: {e}")
     db.delete(record)
@@ -359,7 +350,6 @@ async def delete_purchase_order(po_id: int, db: Session = Depends(get_db)):
 
 @app.patch("/api/pos/{po_id}/field")
 async def update_po_field(po_id: int, payload: dict, db: Session = Depends(get_db)):
-    """Updates a single field value and appends to edit_history."""
     record = db.query(PurchaseOrderRecord).filter(PurchaseOrderRecord.id == po_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="PO not found")
@@ -374,11 +364,10 @@ async def update_po_field(po_id: int, payload: dict, db: Session = Depends(get_d
         from sqlalchemy.orm.attributes import flag_modified
         custom = record.custom_fields or {}
         old_value = "Deadline updated manually"
-        custom["_deep_analysis"] = new_value  # Save directly, no {"value": ...} wrapper
+        custom["_deep_analysis"] = new_value 
         record.custom_fields = custom
         flag_modified(record, "custom_fields")
     else:
-        # Custom JSON field — never call setattr on a non-column name
         from sqlalchemy.orm.attributes import flag_modified
         custom    = record.custom_fields or {}
         entry     = custom.get(field, {})
@@ -413,21 +402,10 @@ async def get_po_pdf(po_id: int, db: Session = Depends(get_db)):
 
 
 def _normalize_ws(s):
-    """Collapses all whitespace runs to a single space. Real PDFs frequently break
-    label/value pairs and table cells across lines (e.g. 'Our Order No: \\n4800178856-4'),
-    which makes raw substring search against AI-extracted quotes fail even when the
-    quote is genuinely verbatim. Normalizing both sides before comparing fixes that."""
     return re.sub(r"\s+", " ", s or "").strip().lower()
 
 
 def _split_quote_into_chunks(quote, max_chunks=25, min_words=4, min_chars=15):
-    """Splits a (possibly long) AI-extracted quote into sentence-level pieces.
-
-    Long composite quotes (e.g. conditions_of_agreement) are often assembled by the
-    AI from several non-contiguous clauses scattered across the document, so they
-    can almost never be located as a single span. Short quotes are already a single
-    locatable unit and are returned unchanged. This is pure text splitting — it does
-    not call the AI and does not change what was extracted, only how it's searched for."""
     quote = (quote or "").strip()
     if not quote:
         return []
@@ -442,9 +420,6 @@ def _split_quote_into_chunks(quote, max_chunks=25, min_words=4, min_chars=15):
         if not piece or len(piece) < min_chars or len(piece.split()) < min_words:
             continue
         piece = piece[:300]
-        # Skip duplicate sentences (e.g. Gemini sometimes repeats an amendment note
-        # verbatim within the same quote). Without this, the same text would appear
-        # as two separate "excerpts" pointing at the identical highlighted location.
         key = re.sub(r"\s+", " ", piece).strip().lower()
         if key in seen:
             continue
@@ -461,18 +436,6 @@ class FindPageRequest(BaseModel):
 
 @app.post("/api/pos/{po_id}/find-page")
 async def find_quote_page(po_id: int, payload: FindPageRequest, db: Session = Depends(get_db)):
-    """
-    Locates an AI-extracted quote inside the source PDF. The quote is split into
-    sentence-level chunks and matched against each page with whitespace normalized
-    on both sides. Returns every chunk that was actually found, each tagged with its
-    page — so a long composite quote resolves to several correctly-placed highlights
-    instead of one unreliable single-page jump, and short quotes resolve exactly as
-    before (just more reliably, since whitespace differences no longer break the match).
-
-    POST + body (not GET + query param) so the full quote can be sent regardless of
-    length — the previous GET version had to truncate to 100 chars to avoid HTTP 414,
-    which silently dropped everything past that point.
-    """
     import fitz
     record = db.query(PurchaseOrderRecord).filter(PurchaseOrderRecord.id == po_id).first()
     if not record or not record.pdf_file_path or not os.path.exists(record.pdf_file_path):
@@ -532,7 +495,6 @@ class CustomFieldUpdate(BaseModel):
 
 
 def _gemini_extract_custom(all_text: str, field: dict) -> dict:
-    """Ask Gemini to extract one custom field; returns {value, source_quote}."""
     from extractor.models import run_gemini_extraction
     from google.genai import types
 
@@ -585,7 +547,6 @@ async def create_custom_field(payload: CustomFieldCreate, db: Session = Depends(
     fields.append(new_field)
     _save_schema(fields)
 
-    # Back-fill across all existing POs
     records = db.query(PurchaseOrderRecord).all()
     updated = 0
     for record in records:
