@@ -52,10 +52,8 @@ const App = () => {
       setFile({ name: data.filename });
       setDbId(data.db_id);
       
-      // Update sidebar history seamlessly without refreshing the page
       fetchHistory(); 
 
-      // Set after the new result has rendered so ExtractionView has the row to scroll to.
       if (fieldKey) setScrollToField(fieldKey);
     } catch (err) {
       setError("Failed to load PO details.");
@@ -71,7 +69,6 @@ const App = () => {
       const res = await fetch(`http://localhost:8000/api/pos/${id}`, { method: 'DELETE' });
       if (res.ok) {
         fetchHistory();
-        // If the deleted PO was currently open, reset the view
         if (dbId === id) {
           setResult(null);
           setFile(null);
@@ -84,18 +81,32 @@ const App = () => {
     }
   };
 
-  const handleFieldUpdate = async (id, field, value) => {
+  // Now accepts reason and sends it in the JSON body
+  const handleFieldUpdate = async (id, field, value, reason = "") => {
     if (!id) return;
     try {
       const res = await fetch(`http://localhost:8000/api/pos/${id}/field`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ field, value })
+        body: JSON.stringify({ field, value, reason })
       });
       if (res.ok) {
         setResult(prev => {
-          const oldVal = prev[field].value;
-          const currentHistory = prev[field].history || [];
+          const oldVal = prev[field]?.value;
+          const currentHistory = prev[field]?.history || [];
+          
+          const newActionLogEntry = {
+            action_type: 'MANUAL_EDIT',
+            description: `User manually updated ${field}`,
+            field: field,
+            old_value: oldVal,
+            new_value: value,
+            reason: reason,
+            timestamp: new Date().toISOString()
+          };
+
+          const currentActionLog = prev.action_log || [];
+
           return {
             ...prev,
             [field]: {
@@ -106,10 +117,11 @@ const App = () => {
                 new_value: value,
                 timestamp: new Date().toISOString()
               }]
-            }
+            },
+            action_log: [newActionLogEntry, ...currentActionLog]
           };
         });
-        fetchHistory(); // sidebar updates immediately after expiry date edits
+        fetchHistory(); 
       }
     } catch (err) {
       console.error("Network error during update", err);
@@ -168,8 +180,6 @@ const App = () => {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#0a0a0a', color: '#e5e5e5', fontFamily: 'system-ui, sans-serif' }}>
-
-      {/* Left sidebar */}
       <Sidebar
         history={history}
         onNewUpload={() => {
@@ -183,7 +193,6 @@ const App = () => {
         onDeletePO={handleDeletePO}
       />
 
-      {/* Main content — min-width prevents collapse when right sidebar opens */}
       <main style={{
         flex: 1, minWidth: 480,
         display: 'flex', flexDirection: 'column',
@@ -203,7 +212,6 @@ const App = () => {
             <p style={{ margin: 0, fontSize: 12.5, color: '#737373' }}>Enterprise Hybrid Pipeline</p>
           </div>
 
-          {/* Tab switcher */}
           <div style={{
             display: 'flex', gap: 3, borderRadius: 11,
             border: '1px solid rgba(255,255,255,0.06)',
@@ -249,7 +257,6 @@ const App = () => {
         </div>
       </main>
 
-      {/* Right source sidebar — fixed overlay, never compresses main */}
       {activeSource && dbId && (
         <>
           <div

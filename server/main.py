@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 import shutil
 import os
 import re
@@ -12,7 +13,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
 
-from database.connection import engine, Base, get_db
+from database.connection import engine, Base, get_db, SessionLocal
 from database.models import PurchaseOrderRecord
 
 from extractor.ingestion import extract_and_chunk_pdf
@@ -63,7 +64,7 @@ def _save_schema(fields: list):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  PROFILE RECONSTRUCTION HELPER
+#  PROFILE RECONSTRUCTION HELPER (Includes Actions History Log)
 # ═══════════════════════════════════════════════════════════════════════════
 def _build_profile_from_record(record: PurchaseOrderRecord) -> dict:
     quotes       = record.source_quotes or {}
@@ -100,6 +101,9 @@ def _build_profile_from_record(record: PurchaseOrderRecord) -> dict:
             "_custom":     True,
             "_meta":       cf,
         }
+
+    # Pass the complete sorted action log directly to frontend for the History Panel
+    profile["action_log"] = sorted(full_history, key=lambda x: x.get('timestamp', ''), reverse=True)
 
     return profile
 
@@ -151,6 +155,21 @@ def run_pipeline_task(task_id: str, file_path: str, run_deep: bool, filename: st
         if deep_analysis:
             initial_custom_fields["_deep_analysis"] = deep_analysis
 
+        initial_logs = [
+            {
+                "timestamp": datetime.utcnow().isoformat(),
+                "action_type": "UPLOAD",
+                "description": "Document uploaded and pipeline initialized",
+                "field": None, "old_value": None, "new_value": None, "reason": None
+            },
+            {
+                "timestamp": datetime.utcnow().isoformat(),
+                "action_type": "AI_EXTRACTION",
+                "description": "AI successfully extracted core fields and deep analysis" if run_deep else "AI successfully extracted primary core fields",
+                "field": None, "old_value": None, "new_value": None, "reason": None
+            }
+        ]
+
         db_record = PurchaseOrderRecord(
             filename=filename,
             file_hash=file_hash,
@@ -167,6 +186,7 @@ def run_pipeline_task(task_id: str, file_path: str, run_deep: bool, filename: st
             line_items=get_val("line_items"),
             source_quotes=quotes_dict,
             custom_fields=initial_custom_fields,
+            edit_history=initial_logs, # Save logs
             status="Pending Review"
         )
         
@@ -233,10 +253,20 @@ async def process_contract_profile(
                     from extractor.extraction import _run_deep_analysis
                     deep_analysis = _run_deep_analysis(all_text)
                     if deep_analysis:
-                        from sqlalchemy.orm.attributes import flag_modified
                         existing_custom["_deep_analysis"] = deep_analysis
                         existing_record.custom_fields = existing_custom
                         flag_modified(existing_record, "custom_fields")
+                        
+                        history_log = existing_record.edit_history or []
+                        history_log.append({
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "action_type": "AI_EXTRACTION_UPGRADE",
+                            "description": "System upgraded cached record with Deep Analysis",
+                            "field": None, "old_value": None, "new_value": None, "reason": None
+                        })
+                        existing_record.edit_history = history_log
+                        flag_modified(existing_record, "edit_history")
+                        
                         db.commit()
                         db.refresh(existing_record)
             except Exception as e:
@@ -367,19 +397,18 @@ async def update_po_field(po_id: int, payload: dict, db: Session = Depends(get_d
 
     field     = payload.get("field")
     new_value = payload.get("value")
+    reason    = payload.get("reason", "") # Extracts reason from frontend
 
     if field in BUILT_IN_COLS:
         old_value = getattr(record, field, None)
         setattr(record, field, new_value)
     elif field == "_deep_analysis":
-        from sqlalchemy.orm.attributes import flag_modified
         custom = record.custom_fields or {}
         old_value = "Deadline updated manually"
         custom["_deep_analysis"] = new_value 
         record.custom_fields = custom
         flag_modified(record, "custom_fields")
     else:
-        from sqlalchemy.orm.attributes import flag_modified
         custom    = record.custom_fields or {}
         entry     = custom.get(field, {})
         old_value = entry.get("value") if isinstance(entry, dict) else entry
@@ -387,16 +416,21 @@ async def update_po_field(po_id: int, payload: dict, db: Session = Depends(get_d
         record.custom_fields = custom
         flag_modified(record, "custom_fields")
 
+    # FEATURE 4: Logging the manual edit action with REASON
     history_log = record.edit_history or []
     history_log.append({
-        "field":     field,
+        "timestamp": datetime.utcnow().isoformat(),
+        "action_type": "MANUAL_EDIT",
+        "description": f"User manually updated {field}",
+        "field": field,
         "old_value": old_value,
         "new_value": new_value,
-        "timestamp": datetime.utcnow().isoformat()
+        "reason": reason
     })
     record.edit_history = history_log
+    flag_modified(record, "edit_history")
+    
     record.status = "Manually Verified"
-
     db.commit()
     return {"status": "success", "message": f"{field} updated"}
 
@@ -564,15 +598,28 @@ async def create_custom_field(payload: CustomFieldCreate, db: Session = Depends(
         if not record.pdf_file_path or not os.path.exists(record.pdf_file_path):
             continue
         try:
-            from extractor.ingestion import extract_and_chunk_pdf
-            from sqlalchemy.orm.attributes import flag_modified
             chunks   = extract_and_chunk_pdf(record.pdf_file_path)
             all_text = "\n".join(c["text"] for c in chunks)
             extracted = _gemini_extract_custom(all_text, new_field)
+            
             custom = record.custom_fields or {}
             custom[payload.key] = extracted
             record.custom_fields = custom
             flag_modified(record, "custom_fields")
+            
+            history_log = record.edit_history or []
+            history_log.append({
+                "timestamp": datetime.utcnow().isoformat(),
+                "action_type": "CUSTOM_FIELD_ADDED",
+                "description": f"System extracted new custom field: {payload.name}",
+                "field": payload.key,
+                "old_value": None,
+                "new_value": extracted.get("value"),
+                "reason": None
+            })
+            record.edit_history = history_log
+            flag_modified(record, "edit_history")
+            
             updated += 1
         except Exception as e:
             print(f"⚠️ Back-fill failed for PO {record.id}: {e}")
@@ -595,20 +642,34 @@ async def update_custom_field(field_key: str, payload: CustomFieldUpdate, db: Se
 
     rerun_count = 0
     if payload.rerun:
-        from sqlalchemy.orm.attributes import flag_modified
         records = db.query(PurchaseOrderRecord).all()
         for record in records:
             if not record.pdf_file_path or not os.path.exists(record.pdf_file_path):
                 continue
             try:
-                from extractor.ingestion import extract_and_chunk_pdf
                 chunks   = extract_and_chunk_pdf(record.pdf_file_path)
                 all_text = "\n".join(c["text"] for c in chunks)
                 extracted = _gemini_extract_custom(all_text, fields[idx])
+                
                 custom = record.custom_fields or {}
+                old_val = custom.get(field_key, {}).get("value")
                 custom[field_key] = extracted
                 record.custom_fields = custom
                 flag_modified(record, "custom_fields")
+                
+                history_log = record.edit_history or []
+                history_log.append({
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "action_type": "CUSTOM_FIELD_UPDATED",
+                    "description": f"System re-extracted custom field: {fields[idx]['name']}",
+                    "field": field_key,
+                    "old_value": old_val,
+                    "new_value": extracted.get("value"),
+                    "reason": None
+                })
+                record.edit_history = history_log
+                flag_modified(record, "edit_history")
+                
                 rerun_count += 1
             except Exception as e:
                 print(f"⚠️ Re-extract failed for PO {record.id}: {e}")
@@ -626,13 +687,27 @@ async def delete_custom_field(field_key: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Custom field not found.")
     _save_schema(fields)
 
-    from sqlalchemy.orm.attributes import flag_modified
     records = db.query(PurchaseOrderRecord).all()
     for record in records:
         custom = record.custom_fields or {}
         if field_key in custom:
+            old_val = custom.get(field_key, {}).get("value")
             custom.pop(field_key)
             record.custom_fields = custom
             flag_modified(record, "custom_fields")
+            
+            history_log = record.edit_history or []
+            history_log.append({
+                "timestamp": datetime.utcnow().isoformat(),
+                "action_type": "FIELD_DELETED",
+                "description": f"Custom field definition deleted globally",
+                "field": field_key,
+                "old_value": old_val,
+                "new_value": None,
+                "reason": None
+            })
+            record.edit_history = history_log
+            flag_modified(record, "edit_history")
+            
     db.commit()
     return {"status": "deleted", "key": field_key}
