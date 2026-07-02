@@ -7,7 +7,6 @@ import CalendarView from './components/CalendarView';
 import ExtractionView from './components/ExtractionView';
 import SourceSidebar from './components/SourceSidebar';
 import AllPOsView from './components/AllPOsView';
-// import SchemaManager from './components/SchemaManager';
 
 const App = () => {
   const [dbId, setDbId] = useState(null);
@@ -52,6 +51,10 @@ const App = () => {
       setResult(data.extraction_result.profile);
       setFile({ name: data.filename });
       setDbId(data.db_id);
+      
+      // Update sidebar history seamlessly without refreshing the page
+      fetchHistory(); 
+
       // Set after the new result has rendered so ExtractionView has the row to scroll to.
       if (fieldKey) setScrollToField(fieldKey);
     } catch (err) {
@@ -118,14 +121,14 @@ const App = () => {
     setLoading(true); setError(null); setActiveSource(null);
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('extraction_mode', extractionMode); // 'primary' | 'deep'
+    formData.append('extraction_mode', extractionMode); 
     try {
       const response = await fetch('http://localhost:8000/api/upload', { method: 'POST', body: formData });
       const data = await response.json();
-      if (response.ok && data.extraction_result.status === "success") {
+      if (response.ok && data.extraction_result?.status === "success") {
         setResult(data.extraction_result.profile);
         setDbId(data.db_id);
-        fetchHistory(); // sidebar updates immediately after upload
+        fetchHistory(); 
       } else {
         setError(data.extraction_result?.message || "Failed to process.");
       }
@@ -150,7 +153,6 @@ const App = () => {
     { id: 'calendar',   label: 'Deadlines',  Icon: CalendarIcon },
     { id: 'all',        label: 'All POs',    Icon: LayoutList   },
     { id: 'extraction', label: 'Extraction', Icon: FileText     },
-    
   ];
 
   const tabBtn = (active) => ({
@@ -174,7 +176,7 @@ const App = () => {
           setResult(null);
           setFile(null);
           setActiveSource(null);
-                setActiveTab('extraction');
+          setActiveTab('extraction');
           setDbId(null);
         }}
         onLoadPO={loadPastPO}
@@ -226,11 +228,6 @@ const App = () => {
               onDeletePO={handleDeletePO}
             />
           )}
-          {/* {activeTab === 'schema' && (
-            <SchemaManager
-              poCount={history.length}
-            />
-          )} */}
           {activeTab === 'extraction' && (
             <ExtractionView
               file={file}
@@ -246,6 +243,7 @@ const App = () => {
               customFields={customFields}
               scrollToField={scrollToField}
               onScrollToFieldDone={() => setScrollToField(null)}
+              loadPastPO={loadPastPO}
             />
           )}
         </div>
