@@ -292,12 +292,15 @@ async def get_calendar_events(db: Session = Depends(get_db)):
     for r in records:
         label_base = r.po_number or r.filename
 
+        # Expiry gets urgency coloring on frontend
         if _is_real_date(r.lapse_expiry_date):
             events.append({
                 "po_id": r.id, "field_key": "lapse_expiry_date",
                 "label": f"Expiry — {label_base}", "date": r.lapse_expiry_date,
                 "source": "lapse_expiry_date",
             })
+        
+        # Effective date gets its own category color
         if _is_real_date(r.effective_date):
             events.append({
                 "po_id": r.id, "field_key": "effective_date",
@@ -305,14 +308,25 @@ async def get_calendar_events(db: Session = Depends(get_db)):
                 "source": "effective_date",
             })
 
+        # Deep Analysis deadlines mapped dynamically to categories
         deep = (r.custom_fields or {}).get("_deep_analysis", {})
         for idx, dl in enumerate(deep.get("deadlines", []) or []):
             if _is_real_date(dl.get("computed_date")):
+                label_text = dl.get('label', '').lower()
+                
+                source_cat = "deadline" # Default
+                if any(k in label_text for k in ["payment", "invoice", "advance", "retention"]):
+                    source_cat = "payment"
+                elif any(k in label_text for k in ["delivery", "dispatch", "shipment"]):
+                    source_cat = "delivery"
+                elif any(k in label_text for k in ["warranty", "guarantee", "dlp", "defect"]):
+                    source_cat = "warranty"
+
                 events.append({
                     "po_id": r.id, "field_key": f"deadline_{idx}",
                     "label": f"{dl.get('label') or 'Deadline'} — {label_base}",
                     "date": dl["computed_date"],
-                    "source": "deadline",
+                    "source": source_cat,
                 })
 
     return events
