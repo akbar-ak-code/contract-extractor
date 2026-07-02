@@ -414,24 +414,38 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
     setTriggerDates(newDates);
   };
 
+  // 👉 UPDATED DEADLINE SAVE FUNCTION TO BE MORE ROBUST 
   const handleSaveDeadline = async (idx, calculatedResult, triggerDate) => {
     if (!calculatedResult) return;
+    
+    // Set the specific index to show loading spinner on the button
     setSavingIdx(idx);
 
-    const updatedDeepAnalysis = JSON.parse(JSON.stringify(deepAnalysis));
-    updatedDeepAnalysis.deadlines[idx].computed_date = calculatedResult;
-    // Persist the trigger date itself too, not just the computed result - otherwise
-    // reopening the PO shows the final date with no record of what produced it.
-    updatedDeepAnalysis.deadlines[idx].trigger_date = triggerDate;
-
     try {
-      await onUpdate(dbId, "_deep_analysis", updatedDeepAnalysis);
-      setTriggerDates(prev => ({ ...prev, [idx + "_edit"]: false }));
-    } catch (e) {
-      console.error("Failed to save deadline", e);
-    }
+      // 1. Create a deep copy of the deep analysis object to modify
+      const updatedDeepAnalysis = JSON.parse(JSON.stringify(deepAnalysis));
+      
+      // 2. Set the computed date AND the trigger date so it remembers what was entered
+      updatedDeepAnalysis.deadlines[idx].computed_date = calculatedResult;
+      updatedDeepAnalysis.deadlines[idx].trigger_date = triggerDate;
 
-    setSavingIdx(null);
+      // 3. Send the entire updated deep_analysis object to the backend
+      await onUpdate(dbId, "_deep_analysis", updatedDeepAnalysis);
+      
+      // 4. Update local state to reflect the change immediately
+      result._deep_analysis.deadlines[idx].computed_date = calculatedResult;
+      result._deep_analysis.deadlines[idx].trigger_date = triggerDate;
+      
+      // 5. Turn off edit mode for this specific deadline
+      setTriggerDates(prev => ({ ...prev, [idx + "_edit"]: false }));
+      
+    } catch (e) {
+      console.error("Failed to save deadline:", e);
+      alert("Failed to save deadline. Please check connection.");
+    } finally {
+      // 6. ALWAYS clear the loading spinner, even if it failed!
+      setSavingIdx(null);
+    }
   };
 
   return (
@@ -486,7 +500,7 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
                   </button>
                 </div>
 
-                <button onClick={(e) => { e.stopPropagation(); handleAnalyze(extractionMode === 'deep'); }} className="mac-btn-primary" style={{ padding: '12px 28px', fontSize: 14 }}>
+                <button onClick={(e) => { e.stopPropagation(); handleAnalyze(extractionMode); }} className="mac-btn-primary" style={{ padding: '12px 28px', fontSize: 14 }}>
                   <Sparkles size={15} /> Run Enterprise Extraction
                 </button>
               </div>
@@ -611,20 +625,17 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
                     const isNull = !dl.computed_date || String(dl.computed_date).toLowerCase() === 'null';
                     const isEditing = triggerDates[i + "_edit"];
                     const showCalculator = isNull || isEditing;
-                    // Falls back to the previously-saved trigger date (not just in-session
-                    // state) so reopening the calculator to revise a deadline starts from
-                    // what was actually used, not blank.
+                    
                     const baseDateInput = triggerDates[i] !== undefined ? triggerDates[i] : (dl.trigger_date || '');
-                    // anchor_description is just a short label naming the trigger event (e.g.
-                    // "Date of Invoice(s)") - it never contains the actual "within 15 days"
-                    // duration. That language lives in the reasoning_chain step descriptions
-                    // instead, so search those too, not anchor_description alone.
+                    
                     const offsetSearchText = [
                       dl.anchor_description,
                       ...(dl.reasoning_chain || []).map(s => s.description)
                     ].filter(Boolean).join(' ');
+                    
+                    // 👉 NEW FIX: Use baseDateInput directly if no offset is found.
                     const offset = showCalculator ? parseAnchor(offsetSearchText) : null;
-                    const calculatedResult = offset ? addTime(baseDateInput, offset) : null;
+                    const calculatedResult = offset ? addTime(baseDateInput, offset) : (baseDateInput || null);
 
                     return (
                       <div key={i} id={`deadline_${i}`} className="rounded-xl border border-white/5 bg-white/[0.01] p-4 flex flex-col gap-3">
@@ -666,7 +677,6 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
                           </span>
                           {dl.anchor_description}
 
-                          {/* 🟢 RESTORED VIEW SOURCE BUTTON FOR DEADLINES */}
                           {dl.reasoning_chain?.length > 0 && (
                             <button
                               onClick={() => setActiveSource({
@@ -759,7 +769,6 @@ const ExtractionView = ({ file, loading, error, result, fileInputRef, handleFile
                         <div className="text-sm opacity-90">{an.description} <span className="opacity-75 text-xs ml-1">(Page {an.page})</span></div>
                       </div>
 
-                      {/* 🟢 RESTORED VIEW SOURCE BUTTON FOR ANOMALIES */}
                       {an.page && (
                         <button
                           onClick={() => setActiveSource({ label: an.type, quote: an.source_clause || an.description, page: an.page })}
