@@ -10,8 +10,7 @@ import enUS from 'date-fns/locale/en-US';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { parseAiDate, getDaysLeft, getDeadlineColor } from '../utils/helpers.js';
 
-// ── FEATURE 2: WEEK VIEW & MONTH VIEW UI FIXES ─────────────────────────────
-// Yahan humne Week view ki lines ko soft kiya hai aur borders hataye hain
+// ── FEATURE 2: PREMIUM WEEK VIEW UI ─────────────────────────────
 const CALENDAR_CUSTOM_CSS = `
   /* Month View Fixes */
   .rbc-month-view { min-height: 600px; border: none !important; }
@@ -19,38 +18,84 @@ const CALENDAR_CUSTOM_CSS = `
   .rbc-row-content { overflow: visible; }
   .rbc-event { overflow: visible; }
 
-  /* Week View Premium Fixes */
+  /* --- 🔥 PREMIUM WEEK VIEW FIXES --- */
   .rbc-time-view {
-    border: 1px solid rgba(255, 255, 255, 0.05) !important;
-    border-radius: 12px !important;
-    background: rgba(18, 18, 20, 0.4) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 16px !important;
+    background: rgba(10, 10, 12, 0.6) !important;
+    overflow: hidden;
+  }
+  
+  /* The Top Header Area (Where our All-Day deadlines sit) */
+  .rbc-allday-cell {
+    background: rgba(255, 255, 255, 0.02) !important;
+    min-height: 120px !important; /* Gives deadlines a lot of room to breathe */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+  
+  /* Day Column Headers */
+  .rbc-time-header {
+    background: rgba(0, 0, 0, 0.2);
+  }
+  .rbc-time-header.rbc-overflowing {
+    border-right: none !important;
+  }
+  .rbc-header {
+    border: none !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    font-size: 13px !important;
+    padding: 12px 0 !important;
+    color: #a1a1aa !important;
+    font-weight: 600 !important;
   }
   .rbc-time-header-content {
-    border-left: 1px solid rgba(255,255,255,0.05) !important;
+    border-left: 1px solid rgba(255,255,255,0.03) !important;
   }
+
+  /* Clean up the Empty Time Grid Below */
   .rbc-time-content {
-    border-top: 1px solid rgba(255,255,255,0.08) !important;
+    border-top: none !important;
   }
   .rbc-timeslot-group {
-    border-bottom: 1px solid rgba(255,255,255,0.03) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02) !important;
+    min-height: 60px !important; /* Taller, cleaner rows */
   }
   .rbc-day-slot .rbc-time-slot {
-    border-top: 1px dashed rgba(255,255,255,0.02) !important;
+    border-top: none !important; /* Removes the confusing mid-hour dashed lines */
   }
-  .rbc-time-column .rbc-timeslot-group {
-    border-right: 1px solid rgba(255,255,255,0.03) !important;
+  .rbc-time-column {
+    border-right: 1px solid rgba(255, 255, 255, 0.03) !important;
   }
-  /* Current Time Line Indicator */
-  .rbc-current-time-indicator {
-    background-color: #ef4444 !important;
-    height: 2px !important;
-    box-shadow: 0 0 4px rgba(239, 68, 68, 0.8);
+  .rbc-time-gutter .rbc-time-slot {
+    color: rgba(255, 255, 255, 0.3) !important;
+    font-size: 11px !important;
+    font-weight: 500;
+    padding-right: 12px !important;
   }
-  /* Make events look like floating pills in week view */
+
+  /* Today Highlight Setup */
+  .rbc-day-bg.rbc-today {
+    background: rgba(123, 97, 255, 0.03) !important;
+  }
+  .rbc-time-header-cell.rbc-today .rbc-header {
+    color: #ffffff !important;
+    background: rgba(123, 97, 255, 0.15) !important;
+    border-bottom: 2px solid #7B61FF !important;
+  }
+  
+  /* Make week view events look like 3D floating cards */
   .rbc-time-view .rbc-event {
-    border-radius: 6px !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(255,255,255,0.15) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+    margin: 2px 4px !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+  .rbc-time-view .rbc-event:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.5) !important;
+    z-index: 10 !important;
+    filter: brightness(1.1);
   }
 `;
 
@@ -58,9 +103,8 @@ const locales = { 'en-US': enUS };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
 
 // ── FEATURE 1: CATEGORY COLOR CODING ───────────────────────────────────────
-// Red, Amber, aur Green ko strict exclude kiya gaya hai taaki wo Expiry ke saath clash na karein.
 const SOURCE_COLORS = {
-  lapse_expiry_date: null,   // Ye helper file ke urgency logic (Red/Amber/Green) se color lega
+  lapse_expiry_date: null,   // Controlled by Urgency (Red/Amber/Green)
   effective_date: '#2563eb', // Blue
   payment: '#8b5cf6',        // Purple (Payment milestones)
   delivery: '#06b6d4',       // Cyan/Teal (Delivery/Dispatch dates)
@@ -69,7 +113,7 @@ const SOURCE_COLORS = {
 };
 
 const CalendarView = ({ onSelectEvent }) => {
-  // Demo dataset ke according default date set (July 2026)
+  // Demo dataset default date
   const [currentDate, setCurrentDate] = useState(new Date(2026, 6, 1));
   const [currentView, setCurrentView] = useState('month');
   const [rawEvents, setRawEvents] = useState([]);
@@ -92,13 +136,11 @@ const CalendarView = ({ onSelectEvent }) => {
       title: e.label,
       start: parsedDate,
       end: parsedDate,
-      allDay: true,
+      allDay: true, // Deadlines render in the top All-Day header
     };
   }).filter(Boolean);
 
   const eventStyleGetter = (event) => {
-    // Agar expiry date hai, toh getDeadlineColor function urgency check karke color dega.
-    // Warna hum upar define kiye gaye distinctly alag colors assign karenge.
     const backgroundColor = event.source === 'lapse_expiry_date'
       ? getDeadlineColor(getDaysLeft(event.start))
       : (SOURCE_COLORS[event.source] || '#6b7280'); 
@@ -111,8 +153,8 @@ const CalendarView = ({ onSelectEvent }) => {
         color: '#fff',
         border: 'none',
         display: 'block',
-        padding: '3px 8px',
-        fontSize: '11px',
+        padding: '4px 8px',
+        fontSize: '11.5px',
         fontWeight: 600,
         boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
       }
@@ -126,7 +168,7 @@ const CalendarView = ({ onSelectEvent }) => {
     >
       <style>{CALENDAR_CUSTOM_CSS}</style>
       
-      {/* ── VISUAL LEGEND (Key) ── */}
+      {/* ── VISUAL LEGEND ── */}
       <div className="flex flex-wrap items-center gap-5 mb-4 pb-4 border-b border-white/10 shrink-0">
         <div className="flex items-center gap-2 text-xs font-semibold tracking-wide text-zinc-300">
            <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"></span> Urgent Expiry
@@ -159,6 +201,8 @@ const CalendarView = ({ onSelectEvent }) => {
           onView={(newView) => setCurrentView(newView)}
           eventPropGetter={eventStyleGetter}
           onSelectEvent={(event) => onSelectEvent(event.poId, event.fieldKey)}
+          step={60}       // Ensures only 1 line per hour (Removes clutter)
+          timeslots={1}   // Removes intermediate dashed lines
         />
       </div>
     </div>
